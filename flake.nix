@@ -177,7 +177,6 @@
                     };
                   };
                   supportedFilesystems.zfs = lib.mkForce false;
-                  zfs.enabled = false;
                 };
 
                 disko.devices = {
