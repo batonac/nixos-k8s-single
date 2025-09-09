@@ -139,6 +139,35 @@
             };
         }).config.kubernetes.result;
 
+      # Development shell with secret management tools
+      devShells.x86_64-linux.default = nixpkgs.legacyPackages.x86_64-linux.mkShell {
+        buildInputs = with nixpkgs.legacyPackages.x86_64-linux; [
+          agenix.packages.x86_64-linux.default
+          ssh-to-age
+          age
+          openssh
+          nixfmt-rfc-style
+        ];
+
+        shellHook = ''
+          echo "🔐 NixOS K8s Secrets Management Shell"
+          echo ""
+          echo "Available tools:"
+          echo "  agenix       - Encrypt/decrypt secrets"
+          echo "  ssh-to-age   - Convert SSH keys to age format"
+          echo "  age          - Age encryption tool"
+          echo ""
+          echo "Scripts:"
+          echo "  ./setup-secrets.sh - Create encrypted secrets"
+          echo "  ./get-age-key.sh   - Get system age key"
+          echo ""
+          echo "Usage:"
+          echo "  1. Run: ./setup-secrets.sh"
+          echo "  2. Then: ./update.sh"
+          echo ""
+        '';
+      };
+
       nixosConfigurations = {
         "${hostName}" = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
@@ -341,14 +370,14 @@
                   cloudflare-email = {
                     file = ./secrets/cloudflare-email.age;
                     mode = "0400";
-                    owner = "acme";
-                    group = "acme";
+                    owner = "root";
+                    group = "root";
                   };
                   cloudflare-dns-api-token = {
                     file = ./secrets/cloudflare-dns-api-token.age;
                     mode = "0400";
-                    owner = "acme";
-                    group = "acme";
+                    owner = "root";
+                    group = "root";
                   };
                 };
 
@@ -696,11 +725,11 @@
                     defaults.email = "kevin@avu.nu";
                     certs."${fqdn}" = {
                       domain = fqdn;
-                      dnsProvider = "cloudflare"; # or your DNS provider
-                      credentialsFile = pkgs.writeText "cloudflare-credentials" ''
-                        CLOUDFLARE_EMAIL_FILE=${config.age.secrets.cloudflare-email.path}
-                        CLOUDFLARE_DNS_API_TOKEN_FILE=${config.age.secrets.cloudflare-dns-api-token.path}
-                      '';
+                      dnsProvider = "cloudflare";
+                      credentialFiles = {
+                        "CLOUDFLARE_EMAIL_FILE" = config.age.secrets.cloudflare-email.path;
+                        "CLOUDFLARE_DNS_API_TOKEN_FILE" = config.age.secrets.cloudflare-dns-api-token.path;
+                      };
                       group = "kubernetes";
                       webroot = null;
                     };
