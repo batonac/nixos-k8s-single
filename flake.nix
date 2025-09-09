@@ -36,6 +36,7 @@
       initialPassword = "password"; # Replace with a secure password
       ipAddress = "10.48.4.181";
       stateVersion = "25.11"; # NixOS state version
+      sshKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOv4SpIhHJqtRaYBRQOin4PTDUxRwo7ozoQHTUFjMGLW avunu@AvunuCentral"; # Replace with your SSH public key
       extraPackages = with nixpkgs.legacyPackages.x86_64-linux; [
         coreutils
         curl
@@ -167,9 +168,7 @@
                         enable = true;
                         ignoreEmptyHostKeys = true;
                         port = 22;
-                        authorizedKeys = [
-                          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOv4SpIhHJqtRaYBRQOin4PTDUxRwo7ozoQHTUFjMGLW avunu@AvunuCentral"
-                        ];
+                        authorizedKeys = [ sshKey ];
                       };
                     };
                     supportedFilesystems = {
@@ -315,19 +314,22 @@
 
                 i18n.defaultLocale = locale;
 
-                users.users.${username} =
-                  { pkgs, ... }:
-                  {
-                    extraGroups = [
-                      "wheel"
-                      "kubernetes"
-                    ];
-                    initialPassword = initialPassword;
-                    isNormalUser = true;
-                    openssh.authorizedKeys.keys = [
-                      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOv4SpIhHJqtRaYBRQOin4PTDUxRwo7ozoQHTUFjMGLW avunu@AvunuCentral"
-                    ];
+                users.users = {
+                  ${username} =
+                    { pkgs, ... }:
+                    {
+                      extraGroups = [
+                        "wheel"
+                        "kubernetes"
+                      ];
+                      initialPassword = initialPassword;
+                      isNormalUser = true;
+                      openssh.authorizedKeys.keys = [ sshKey ];
+                    };
+                  root = {
+                    openssh.authorizedKeys.keys = [ sshKey ];
                   };
+                };
 
                 environment = {
                   etc = {
@@ -650,6 +652,8 @@
                     ];
 
                   };
+
+                  lvm.enable = false;
 
                   openssh = {
                     enable = true;
