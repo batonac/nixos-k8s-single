@@ -13,6 +13,10 @@
       url = "github:hall/kubenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    agenix = {
+      url = "github:ryantm/agenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -22,6 +26,7 @@
       disko,
       vscode-server,
       kubenix,
+      agenix,
       ...
     }:
     let
@@ -141,6 +146,7 @@
             { nix.nixPath = [ "nixpkgs=${self.inputs.nixpkgs}" ]; }
             vscode-server.nixosModules.default
             disko.nixosModules.disko
+            agenix.nixosModules.default
             (
               {
                 config,
@@ -331,13 +337,27 @@
                   };
                 };
 
+                age.secrets = {
+                  cloudflare-email = {
+                    file = ./secrets/cloudflare-email.age;
+                    mode = "0400";
+                    owner = "acme";
+                    group = "acme";
+                  };
+                  cloudflare-dns-api-token = {
+                    file = ./secrets/cloudflare-dns-api-token.age;
+                    mode = "0400";
+                    owner = "acme";
+                    group = "acme";
+                  };
+                };
+
                 environment = {
                   etc = {
                     "cni/net.d/10-crio-bridge.conflist".enable = false;
                     "cni/net.d/99-loopback.conflist".enable = false;
-                    "secrets/cloudflare-credentials".source = ./acme-secrets;
                   };
-                  systemPackages = extraPackages;
+                  systemPackages = extraPackages ++ [ agenix.packages.x86_64-linux.default ];
                 };
 
                 # fileSystems = lib.mkForce {
@@ -677,7 +697,10 @@
                     certs."${fqdn}" = {
                       domain = fqdn;
                       dnsProvider = "cloudflare"; # or your DNS provider
-                      credentialsFile = "/etc/secrets/cloudflare-credentials";
+                      credentialsFile = pkgs.writeText "cloudflare-credentials" ''
+                        CLOUDFLARE_EMAIL_FILE=${config.age.secrets.cloudflare-email.path}
+                        CLOUDFLARE_DNS_API_TOKEN_FILE=${config.age.secrets.cloudflare-dns-api-token.path}
+                      '';
                       group = "kubernetes";
                       webroot = null;
                     };
@@ -693,7 +716,7 @@
                       matchConfig.Name = "ens18";
                       address = [
                         # configure addresses including subnet mask
-                        "10.48.4.181/24"
+                        "${ipAddress}/24"
                       ];
                       routes = [
                         # create default routes for IPv4
