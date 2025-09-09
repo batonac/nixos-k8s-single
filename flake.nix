@@ -161,11 +161,13 @@
                       "nvme"
                       "uhci_hcd"
                     ];
+                    supportedFilesystems.zfs = lib.mkForce false;
                     systemd = {
                       enable = true;
                       tpm2.enable = true;
                     };
                     verbose = false;
+                    zfs.enabled = lib.mkForce false;
                   };
                   kernelPackages = pkgs.linuxPackages_latest;
                   loader = {
@@ -209,7 +211,7 @@
                               format = "btrfs";
                               mountpoint = "/";
                               extraArgs = [
-                                "-l"
+                                "--label"
                                 "root"
                               ];
                             };
@@ -290,11 +292,12 @@
                     extraGroups = [
                       "wheel"
                       "kubernetes"
-                      "docker"
-                      "libvirt"
                     ];
                     initialPassword = initialPassword;
                     isNormalUser = true;
+                    openssh.authorizedKeys.keys = [
+                      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOv4SpIhHJqtRaYBRQOin4PTDUxRwo7ozoQHTUFjMGLW avunu@AvunuCentral"
+                    ];
                   };
 
                 environment = {
@@ -623,7 +626,6 @@
                     enable = true;
                     settings = {
                       PermitRootLogin = "yes";
-                      PasswordAuthentication = true;
                     };
                   };
 
