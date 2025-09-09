@@ -161,12 +161,16 @@
                       "nvme"
                       "uhci_hcd"
                     ];
-                    ssh = {
+                    network = {
                       enable = true;
-                      port = 22;
-                      authorizedKeys = [
-                        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOv4SpIhHJqtRaYBRQOin4PTDUxRwo7ozoQHTUFjMGLW avunu@AvunuCentral"
-                      ];
+                      ssh = {
+                        enable = true;
+                        ignoreEmptyHostKeys = false;
+                        port = 22;
+                        authorizedKeys = [
+                          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOv4SpIhHJqtRaYBRQOin4PTDUxRwo7ozoQHTUFjMGLW avunu@AvunuCentral"
+                        ];
+                      };
                     };
                     supportedFilesystems = {
                       btrfs = true;
