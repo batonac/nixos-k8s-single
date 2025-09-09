@@ -27,7 +27,8 @@
     let
       # Configuration variables
       hostName = "k3s-dev"; # Replace with desired hostname
-      fqdn = "${hostName}.batonac.com"; # Replace with your domain
+      domain = "batonac.com"; # Replace with your domain
+      fqdn = "${hostName}.${domain}"; # Fully qualified domain name
       diskDevice = "/dev/sda"; # Replace with your disk device
       timeZone = "America/New_York"; # Replace with your timezone
       locale = "en_US.UTF-8"; # Replace with your locale
