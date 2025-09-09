@@ -167,7 +167,6 @@
                       tpm2.enable = true;
                     };
                     verbose = false;
-                    zfs.enabled = lib.mkForce false;
                   };
                   kernelPackages = pkgs.linuxPackages_latest;
                   loader = {
@@ -177,6 +176,8 @@
                       enable = true;
                     };
                   };
+                  supportedFilesystems.zfs = lib.mkForce false;
+                  zfs.enabled = false;
                 };
 
                 disko.devices = {
