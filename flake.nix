@@ -165,7 +165,7 @@
                       enable = true;
                       ssh = {
                         enable = true;
-                        ignoreEmptyHostKeys = false;
+                        ignoreEmptyHostKeys = true;
                         port = 22;
                         authorizedKeys = [
                           "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOv4SpIhHJqtRaYBRQOin4PTDUxRwo7ozoQHTUFjMGLW avunu@AvunuCentral"
