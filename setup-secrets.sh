@@ -34,7 +34,7 @@ read -rs cloudflare_token
 echo -n "$cloudflare_token" | agenix -e secrets/cloudflare-dns-api-token.age
 
 echo ""
-echo "Secrets created successfully!"
+echo "✅ Cloudflare secrets created successfully!"
 echo ""
 echo "Files created:"
 echo "  secrets/cloudflare-email.age"

@@ -146,6 +146,7 @@
           ssh-to-age
           age
           openssh
+          openssl
           nixfmt-rfc-style
         ];
 
@@ -389,32 +390,10 @@
                   systemPackages = extraPackages ++ [ agenix.packages.x86_64-linux.default ];
                 };
 
-                # fileSystems = lib.mkForce {
-                #   "/" = {
-                #     device = "/dev/disk/by-label/root";
-                #     fsType = "f2fs";
-                #     options = [
-                #       "atgc"
-                #       "compress_algorithm=zstd"
-                #       "compress_chksum"
-                #       "gc_merge"
-                #       "noatime"
-                #     ];
-                #   };
-                #   "/boot" = {
-                #     device = "/dev/disk/by-label/ESP";
-                #     fsType = "vfat";
-                #     options = [
-                #       "noatime"
-                #       "umask=0077"
-                #     ];
-                #   };
-                # };
-
                 services = {
                   etcd = {
                     advertiseClientUrls = [ "https://${fqdn}:2379" ];
-                    # discovery = "https://${hostName}.batonac.com:2380";
+                    discovery = "https://${fqdn}:2380";
                     enable = true;
                     initialAdvertisePeerUrls = [ "https://${ipAddress}:2380" ];
                     initialCluster = [ "${hostName}=https://${ipAddress}:2380" ];
@@ -607,13 +586,12 @@
                     apiserver = {
                       advertiseAddress = ipAddress;
                       allowPrivileged = true;
-                      authorizationMode = [ "AlwaysAllow" ];
+                      authorizationMode = [ "AlwaysAllow" ];  # Re-enable for ACME cert simplicity
                       bindAddress = "0.0.0.0";
-                      clientCaFile = "/etc/kubernetes/client-certs/client-ca.crt";
                       enable = true;
                       securePort = 6443;
                       serviceClusterIpRange = "10.43.0.0/16";
-                      serviceAccountKeyFile = "/var/lib/acme/${fqdn}/cert.pem";
+                      serviceAccountKeyFile = "/var/lib/acme/${fqdn}/key.pem";
                       serviceAccountSigningKeyFile = "/var/lib/acme/${fqdn}/key.pem";
                       tlsCertFile = "/var/lib/acme/${fqdn}/cert.pem";
                       tlsKeyFile = "/var/lib/acme/${fqdn}/key.pem";
@@ -761,10 +739,6 @@
                   # Add services to kubernetes group for certificate access
                   services.etcd.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
                   services.flannel.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
-                  services.kube-apiserver.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
-                  services.kube-controller-manager.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
-                  services.kube-scheduler.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
-                  services.kube-addon-manager.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
                 };
 
                 virtualisation = {
