@@ -161,9 +161,22 @@
                       "nvme"
                       "uhci_hcd"
                     ];
-                    supportedFilesystems.zfs = lib.mkForce false;
-                    systemd = {
+                    ssh = {
                       enable = true;
+                      port = 22;
+                      authorizedKeys = [
+                        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOv4SpIhHJqtRaYBRQOin4PTDUxRwo7ozoQHTUFjMGLW avunu@AvunuCentral"
+                      ];
+                    };
+                    supportedFilesystems = {
+                      btrfs = true;
+                      vfat = true;
+                      zfs = lib.mkForce false;
+                    };
+                    systemd = {
+                      emergencyAccess = true;
+                      enable = true;
+                      root = "gpt-auto";
                       tpm2.enable = true;
                     };
                     verbose = false;
@@ -209,6 +222,12 @@
                             content = {
                               type = "filesystem";
                               format = "btrfs";
+                              mountOptions = [
+                                "autodefrag"
+                                "compress=zstd:15"
+                                "discard=async"
+                                "noatime"
+                              ];
                               mountpoint = "/";
                               extraArgs = [
                                 "--label"
@@ -220,6 +239,12 @@
                       };
                     };
                   };
+                };
+
+                documentation = {
+                  doc.enable = false;
+                  man.enable = false;
+                  nixos.enable = false;
                 };
 
                 networking = {
@@ -308,27 +333,27 @@
                   systemPackages = extraPackages;
                 };
 
-                fileSystems = lib.mkForce {
-                  "/" = {
-                    device = "/dev/disk/by-label/root";
-                    fsType = "f2fs";
-                    options = [
-                      "atgc"
-                      "compress_algorithm=zstd"
-                      "compress_chksum"
-                      "gc_merge"
-                      "noatime"
-                    ];
-                  };
-                  "/boot" = {
-                    device = "/dev/disk/by-label/ESP";
-                    fsType = "vfat";
-                    options = [
-                      "noatime"
-                      "umask=0077"
-                    ];
-                  };
-                };
+                # fileSystems = lib.mkForce {
+                #   "/" = {
+                #     device = "/dev/disk/by-label/root";
+                #     fsType = "f2fs";
+                #     options = [
+                #       "atgc"
+                #       "compress_algorithm=zstd"
+                #       "compress_chksum"
+                #       "gc_merge"
+                #       "noatime"
+                #     ];
+                #   };
+                #   "/boot" = {
+                #     device = "/dev/disk/by-label/ESP";
+                #     fsType = "vfat";
+                #     options = [
+                #       "noatime"
+                #       "umask=0077"
+                #     ];
+                #   };
+                # };
 
                 services = {
                   etcd = {
