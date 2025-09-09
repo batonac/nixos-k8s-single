@@ -335,6 +335,7 @@
                   etc = {
                     "cni/net.d/10-crio-bridge.conflist".enable = false;
                     "cni/net.d/99-loopback.conflist".enable = false;
+                    "secrets/cloudflare-credentials".source = ./acme-secrets;
                   };
                   systemPackages = extraPackages;
                 };
@@ -676,7 +677,7 @@
                     certs."${fqdn}" = {
                       domain = fqdn;
                       dnsProvider = "cloudflare"; # or your DNS provider
-                      credentialsFile = "/etc/nixos/secrets/cloudflare-credentials";
+                      credentialsFile = "/etc/secrets/cloudflare-credentials";
                       group = "kubernetes";
                       webroot = null;
                     };
