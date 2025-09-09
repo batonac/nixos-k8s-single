@@ -222,7 +222,7 @@
 
                 networking = {
                   extraHosts = ''
-                    ${ipAddress} ${hostName}.batonac.com
+                    ${ipAddress} ${fqdn}
                   '';
                   firewall = {
                     enable = true;
