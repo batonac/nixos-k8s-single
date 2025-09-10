@@ -386,7 +386,47 @@
                   etc = {
                     "cni/net.d/10-crio-bridge.conflist".enable = false;
                     "cni/net.d/99-loopback.conflist".enable = false;
+                    
+                    # Create cluster-admin kubeconfig using ACME certificates (similar to PKI module)
+                    "kubernetes/cluster-admin.kubeconfig".text = builtins.toJSON {
+                      apiVersion = "v1";
+                      kind = "Config";
+                      clusters = [
+                        {
+                          name = "local";
+                          cluster = {
+                            certificate-authority = "/var/lib/acme/${fqdn}/chain.pem";
+                            server = "https://${fqdn}:6443";
+                          };
+                        }
+                      ];
+                      users = [
+                        {
+                          name = "cluster-admin";
+                          user = {
+                            client-certificate = "/var/lib/acme/${fqdn}/cert.pem";
+                            client-key = "/var/lib/acme/${fqdn}/key.pem";
+                          };
+                        }
+                      ];
+                      contexts = [
+                        {
+                          context = {
+                            cluster = "local";
+                            user = "cluster-admin";
+                          };
+                          name = "local";
+                        }
+                      ];
+                      current-context = "local";
+                    };
                   };
+                  
+                  # Set system-wide KUBECONFIG (like PKI module does)
+                  variables = {
+                    KUBECONFIG = "/etc/kubernetes/cluster-admin.kubeconfig";
+                  };
+                  
                   systemPackages = extraPackages ++ [ agenix.packages.x86_64-linux.default ];
                 };
 
@@ -652,6 +692,7 @@
                     };
 
                     kubeconfig = {
+                      caFile = "/var/lib/acme/${fqdn}/chain.pem";
                       certFile = "/var/lib/acme/${fqdn}/cert.pem";
                       keyFile = "/var/lib/acme/${fqdn}/key.pem";
                       server = "https://${fqdn}:6443";
