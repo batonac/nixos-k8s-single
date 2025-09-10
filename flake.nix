@@ -433,11 +433,12 @@
                     };
                   };
                   kubernetes = {
-                    addons = {
-                      dns = {
-                        enable = true;
-                      };
-                    };
+
+                    apiserverAddress = "https://${fqdn}:6443";
+                    # caFile = "/var/lib/acme/${fqdn}/chain.pem";
+                    clusterCidr = "10.42.0.0/16";
+                    easyCerts = true;  # Enable for automatic certificate management and kubeconfig
+                    masterAddress = fqdn;
 
                     # Enable addon manager for custom addons
                     addonManager = {
@@ -583,52 +584,33 @@
                       };
                     };
 
+                    addons = {
+                      dns = {
+                        enable = true;
+                      };
+                    };
+
                     apiserver = {
                       advertiseAddress = ipAddress;
                       allowPrivileged = true;
-                      # authorizationMode = [ "AlwaysAllow" ];
+                      authorizationMode = [
+                        "Node"
+                        "RBAC"
+                      ];
                       bindAddress = "0.0.0.0";
                       enable = true;
                       securePort = 6443;
                       serviceClusterIpRange = "10.43.0.0/16";
-                      serviceAccountKeyFile = "/var/lib/acme/${fqdn}/cert.pem";
-                      serviceAccountSigningKeyFile = "/var/lib/acme/${fqdn}/key.pem";
-                      tlsCertFile = "/var/lib/acme/${fqdn}/cert.pem";
-                      tlsKeyFile = "/var/lib/acme/${fqdn}/key.pem";
+                      # Override TLS certificates to use ACME instead of easyCerts
+                      tlsCertFile = lib.mkForce "/var/lib/acme/${fqdn}/cert.pem";
+                      tlsKeyFile = lib.mkForce "/var/lib/acme/${fqdn}/key.pem";
+                      # Keep easyCerts for service account signing
                       etcd = {
                         servers = [ "https://${fqdn}:2379" ];
                         caFile = "/var/lib/acme/${fqdn}/chain.pem";
                         certFile = "/var/lib/acme/${fqdn}/cert.pem";
                         keyFile = "/var/lib/acme/${fqdn}/key.pem";
                       };
-                    };
-
-                    controllerManager = {
-                      enable = true;
-                      bindAddress = "0.0.0.0";
-                      clusterCidr = "10.42.0.0/16";
-                      rootCaFile = "/var/lib/acme/${fqdn}/chain.pem";
-                      serviceAccountKeyFile = "/var/lib/acme/${fqdn}/cert.pem";
-                      tlsCertFile = "/var/lib/acme/${fqdn}/cert.pem";
-                      tlsKeyFile = "/var/lib/acme/${fqdn}/key.pem";
-                    };
-
-                    scheduler = {
-                      enable = true;
-                      address = "0.0.0.0";
-                      port = 10251;
-                    };
-
-                    apiserverAddress = "https://${fqdn}:6443";
-                    caFile = "/var/lib/acme/${fqdn}/chain.pem";
-                    clusterCidr = "10.42.0.0/16";
-                    easyCerts = false;
-
-                    kubeconfig = {
-                      caFile = "/var/lib/acme/${fqdn}/chain.pem";
-                      certFile = "/var/lib/acme/${fqdn}/cert.pem";
-                      keyFile = "/var/lib/acme/${fqdn}/key.pem";
-                      server = "https://${fqdn}:6443";
                     };
 
                     # Seed container images and kubelet config
@@ -671,8 +653,6 @@
                         ];
                       };
                     };
-
-                    masterAddress = fqdn;
 
                     roles = [
                       "master"
