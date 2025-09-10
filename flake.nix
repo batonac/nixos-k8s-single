@@ -435,10 +435,14 @@
                   kubernetes = {
 
                     apiserverAddress = "https://${fqdn}:6443";
-                    # caFile = "/var/lib/acme/${fqdn}/chain.pem";
+                    caFile = "/var/lib/acme/${fqdn}/chain.pem";
                     clusterCidr = "10.42.0.0/16";
-                    easyCerts = true;  # Enable for automatic certificate management and kubeconfig
+                    easyCerts = false;
                     masterAddress = fqdn;
+                    roles = [
+                      "master"
+                      "node"
+                    ];
 
                     # Enable addon manager for custom addons
                     addonManager = {
@@ -581,6 +585,30 @@
                             type = "ClusterIP";
                           };
                         };
+
+                        # ClusterRoleBinding to give admin permissions to ACME certificate
+                        acme-admin-binding = {
+                          apiVersion = "rbac.authorization.k8s.io/v1";
+                          kind = "ClusterRoleBinding";
+                          metadata = {
+                            name = "acme-admin";
+                            labels = {
+                              "addonmanager.kubernetes.io/mode" = "Reconcile";
+                            };
+                          };
+                          subjects = [
+                            {
+                              kind = "User";
+                              name = fqdn; # The certificate subject (Common Name)
+                              apiGroup = "rbac.authorization.k8s.io";
+                            }
+                          ];
+                          roleRef = {
+                            kind = "ClusterRole";
+                            name = "cluster-admin";
+                            apiGroup = "rbac.authorization.k8s.io";
+                          };
+                        };
                       };
                     };
 
@@ -601,16 +629,32 @@
                       enable = true;
                       securePort = 6443;
                       serviceClusterIpRange = "10.43.0.0/16";
-                      # Override TLS certificates to use ACME instead of easyCerts
-                      tlsCertFile = lib.mkForce "/var/lib/acme/${fqdn}/cert.pem";
-                      tlsKeyFile = lib.mkForce "/var/lib/acme/${fqdn}/key.pem";
-                      # Keep easyCerts for service account signing
+                      serviceAccountKeyFile = "/var/lib/acme/${fqdn}/cert.pem";
+                      serviceAccountSigningKeyFile = "/var/lib/acme/${fqdn}/key.pem";
+                      tlsCertFile = "/var/lib/acme/${fqdn}/cert.pem";
+                      tlsKeyFile = "/var/lib/acme/${fqdn}/key.pem";
                       etcd = {
                         servers = [ "https://${fqdn}:2379" ];
                         caFile = "/var/lib/acme/${fqdn}/chain.pem";
                         certFile = "/var/lib/acme/${fqdn}/cert.pem";
                         keyFile = "/var/lib/acme/${fqdn}/key.pem";
                       };
+                    };
+
+                    controllerManager = {
+                      enable = true;
+                      bindAddress = "0.0.0.0";
+                      clusterCidr = "10.42.0.0/16";
+                      rootCaFile = "/var/lib/acme/${fqdn}/chain.pem";
+                      serviceAccountKeyFile = "/var/lib/acme/${fqdn}/cert.pem";
+                      tlsCertFile = "/var/lib/acme/${fqdn}/cert.pem";
+                      tlsKeyFile = "/var/lib/acme/${fqdn}/key.pem";
+                    };
+
+                    kubeconfig = {
+                      certFile = "/var/lib/acme/${fqdn}/cert.pem";
+                      keyFile = "/var/lib/acme/${fqdn}/key.pem";
+                      server = "https://${fqdn}:6443";
                     };
 
                     # Seed container images and kubelet config
@@ -654,10 +698,11 @@
                       };
                     };
 
-                    roles = [
-                      "master"
-                      "node"
-                    ];
+                    scheduler = {
+                      enable = true;
+                      address = "0.0.0.0";
+                      port = 10251;
+                    };
 
                   };
 
