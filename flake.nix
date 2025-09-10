@@ -586,12 +586,12 @@
                     apiserver = {
                       advertiseAddress = ipAddress;
                       allowPrivileged = true;
-                      authorizationMode = [ "AlwaysAllow" ];  # Re-enable for ACME cert simplicity
+                      # authorizationMode = [ "AlwaysAllow" ];
                       bindAddress = "0.0.0.0";
                       enable = true;
                       securePort = 6443;
                       serviceClusterIpRange = "10.43.0.0/16";
-                      serviceAccountKeyFile = "/var/lib/acme/${fqdn}/key.pem";
+                      serviceAccountKeyFile = "/var/lib/acme/${fqdn}/cert.pem";
                       serviceAccountSigningKeyFile = "/var/lib/acme/${fqdn}/key.pem";
                       tlsCertFile = "/var/lib/acme/${fqdn}/cert.pem";
                       tlsKeyFile = "/var/lib/acme/${fqdn}/key.pem";
@@ -608,7 +608,7 @@
                       bindAddress = "0.0.0.0";
                       clusterCidr = "10.42.0.0/16";
                       rootCaFile = "/var/lib/acme/${fqdn}/chain.pem";
-                      serviceAccountKeyFile = "/var/lib/acme/${fqdn}/key.pem";
+                      serviceAccountKeyFile = "/var/lib/acme/${fqdn}/cert.pem";
                       tlsCertFile = "/var/lib/acme/${fqdn}/cert.pem";
                       tlsKeyFile = "/var/lib/acme/${fqdn}/key.pem";
                     };
