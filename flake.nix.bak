@@ -192,7 +192,6 @@
               {
                 imports = [
                   (modulesPath + "/profiles/qemu-guest.nix")
-                  ./addons
                 ];
 
                 boot = {
@@ -501,47 +500,6 @@
                     group = "root";
                     mode = "0400";
                   };
-
-                  # Service account keys
-                  k8s-service-account-crt = {
-                    file = ./secrets/k8s-service-account.crt.age;
-                    path = "/var/lib/kubernetes/pki/service-account.crt";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
-                  };
-                  k8s-service-account-key = {
-                    file = ./secrets/k8s-service-account.key.age;
-                    path = "/var/lib/kubernetes/pki/service-account.key";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
-                  };
-
-                  # Kubelet server certificates
-                  k8s-kubelet-server-crt = {
-                    file = ./secrets/k8s-kubelet-server.crt.age;
-                    path = "/var/lib/kubernetes/pki/kubelet-server.crt";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
-                  };
-                  k8s-kubelet-server-key = {
-                    file = ./secrets/k8s-kubelet-server.key.age;
-                    path = "/var/lib/kubernetes/pki/kubelet-server.key";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
-                  };
-
-                  # Kubeconfig files
-                  k8s-admin-kubeconfig = {
-                    file = ./secrets/k8s-admin.kubeconfig.age;
-                    path = "/etc/kubernetes/admin.kubeconfig";
-                    owner = "root";
-                    group = "kubernetes";
-                    mode = "0440";
-                  };
                 };
 
                 environment = {
@@ -645,6 +603,180 @@
                       "node"
                     ];
 
+                    # Enable addon manager for custom addons
+                    addonManager = {
+                      enable = true;
+                      addons = {
+                        # Namespaces
+                        cert-manager-namespace = {
+                          apiVersion = "v1";
+                          kind = "Namespace";
+                          metadata = {
+                            name = "cert-manager";
+                            labels = {
+                              "addonmanager.kubernetes.io/mode" = "Reconcile";
+                            };
+                          };
+                        };
+
+                        juicefs-csi-namespace = {
+                          apiVersion = "v1";
+                          kind = "Namespace";
+                          metadata = {
+                            name = "juicefs-csi";
+                            labels = {
+                              "addonmanager.kubernetes.io/mode" = "Reconcile";
+                            };
+                          };
+                        };
+
+                        monitoring-namespace = {
+                          apiVersion = "v1";
+                          kind = "Namespace";
+                          metadata = {
+                            name = "monitoring";
+                            labels = {
+                              "addonmanager.kubernetes.io/mode" = "Reconcile";
+                            };
+                          };
+                        };
+
+                        # Test pod
+                        alpine-test = {
+                          apiVersion = "v1";
+                          kind = "Pod";
+                          metadata = {
+                            name = "alpine-test";
+                            namespace = "default";
+                            labels = {
+                              "addonmanager.kubernetes.io/mode" = "Reconcile";
+                              app = "alpine-test";
+                            };
+                          };
+                          spec = {
+                            containers = [
+                              {
+                                name = "alpine";
+                                image = "alpine:latest";
+                                command = [
+                                  "sleep"
+                                  "3600"
+                                ];
+                                imagePullPolicy = "IfNotPresent";
+                                resources = {
+                                  requests = {
+                                    cpu = "100m";
+                                    memory = "64Mi";
+                                  };
+                                };
+                              }
+                            ];
+                            restartPolicy = "Always";
+                          };
+                        };
+
+                        # Example nginx deployment
+                        nginx-deployment = {
+                          apiVersion = "apps/v1";
+                          kind = "Deployment";
+                          metadata = {
+                            name = "nginx";
+                            namespace = "default";
+                            labels = {
+                              "addonmanager.kubernetes.io/mode" = "Reconcile";
+                              app = "nginx";
+                            };
+                          };
+                          spec = {
+                            replicas = 1;
+                            selector = {
+                              matchLabels = {
+                                app = "nginx";
+                              };
+                            };
+                            template = {
+                              metadata = {
+                                labels = {
+                                  app = "nginx";
+                                };
+                              };
+                              spec = {
+                                containers = [
+                                  {
+                                    name = "nginx";
+                                    image = "nginx:1.25";
+                                    imagePullPolicy = "IfNotPresent";
+                                    ports = [
+                                      {
+                                        containerPort = 80;
+                                      }
+                                    ];
+                                  }
+                                ];
+                              };
+                            };
+                          };
+                        };
+
+                        # Service for nginx
+                        nginx-service = {
+                          apiVersion = "v1";
+                          kind = "Service";
+                          metadata = {
+                            name = "nginx";
+                            namespace = "default";
+                            labels = {
+                              "addonmanager.kubernetes.io/mode" = "Reconcile";
+                              app = "nginx";
+                            };
+                          };
+                          spec = {
+                            selector = {
+                              app = "nginx";
+                            };
+                            ports = [
+                              {
+                                name = "http";
+                                port = 80;
+                                targetPort = 80;
+                              }
+                            ];
+                            type = "ClusterIP";
+                          };
+                        };
+
+                        # ClusterRoleBinding to give admin permissions to ACME certificate
+                        acme-admin-binding = {
+                          apiVersion = "rbac.authorization.k8s.io/v1";
+                          kind = "ClusterRoleBinding";
+                          metadata = {
+                            name = "acme-admin";
+                            labels = {
+                              "addonmanager.kubernetes.io/mode" = "Reconcile";
+                            };
+                          };
+                          subjects = [
+                            {
+                              kind = "User";
+                              name = fqdn; # The certificate subject (Common Name)
+                              apiGroup = "rbac.authorization.k8s.io";
+                            }
+                          ];
+                          roleRef = {
+                            kind = "ClusterRole";
+                            name = "cluster-admin";
+                            apiGroup = "rbac.authorization.k8s.io";
+                          };
+                        };
+                      };
+                    };
+
+                    addons = {
+                      dns = {
+                        enable = true;
+                      };
+                    };
+
                     apiserver = {
                       advertiseAddress = ipAddress;
                       allowPrivileged = true;
@@ -656,9 +788,9 @@
                       enable = true;
                       securePort = 6443;
                       serviceClusterIpRange = "10.43.0.0/16";
-                      # Use dedicated service account keys for signing/verification
-                      serviceAccountKeyFile = "/var/lib/kubernetes/pki/service-account.crt";
-                      serviceAccountSigningKeyFile = "/var/lib/kubernetes/pki/service-account.key";
+                      # Switch to internal CA + internal apiserver cert (ACME served via SNI extra flag)
+                      serviceAccountKeyFile = "/var/lib/acme/${fqdn}/cert.pem"; # (kept temporary – consider separate key later)
+                      serviceAccountSigningKeyFile = "/var/lib/acme/${fqdn}/key.pem";
                       tlsCertFile = "/var/lib/kubernetes/pki/apiserver.crt";
                       tlsKeyFile = "/var/lib/kubernetes/pki/apiserver.key";
                       etcd = {
@@ -678,7 +810,7 @@
                       bindAddress = "0.0.0.0";
                       clusterCidr = "10.42.0.0/16";
                       rootCaFile = "/var/lib/acme/${fqdn}/chain.pem";
-                      serviceAccountKeyFile = "/var/lib/kubernetes/pki/service-account.crt";
+                      serviceAccountKeyFile = "/var/lib/acme/${fqdn}/cert.pem";
                       tlsCertFile = "/var/lib/acme/${fqdn}/cert.pem";
                       tlsKeyFile = "/var/lib/acme/${fqdn}/key.pem";
                     };

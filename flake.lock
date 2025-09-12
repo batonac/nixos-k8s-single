@@ -52,11 +52,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1757255839,
-        "narHash": "sha256-XH33B1X888Xc/xEXhF1RPq/kzKElM0D5C9N6YdvOvIc=",
+        "lastModified": 1757508292,
+        "narHash": "sha256-7lVWL5bC6xBIMWWDal41LlGAG+9u2zUorqo3QCUL4p4=",
         "owner": "nix-community",
         "repo": "disko",
-        "rev": "c8a0e78d86b12ea67be6ed0f7cae7f9bfabae75a",
+        "rev": "146f45bee02b8bd88812cfce6ffc0f933788875a",
         "type": "github"
       },
       "original": {
@@ -120,6 +120,22 @@
         "type": "github"
       }
     },
+    "juicefs-csi-driver": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1757583408,
+        "narHash": "sha256-pxOmwcyUa4i25udREa2Wthgm3vjJ8tZfnNeZz1CVEfs=",
+        "owner": "juicedata",
+        "repo": "juicefs-csi-driver",
+        "rev": "5f0b6b98284b3271378d3c5e3bed20f9ae24027e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "juicedata",
+        "repo": "juicefs-csi-driver",
+        "type": "github"
+      }
+    },
     "kubenix": {
       "inputs": {
         "flake-compat": "flake-compat",
@@ -145,11 +161,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1757347588,
-        "narHash": "sha256-tLdkkC6XnsY9EOZW9TlpesTclELy8W7lL2ClL+nma8o=",
+        "lastModified": 1757487488,
+        "narHash": "sha256-zwE/e7CuPJUWKdvvTCB7iunV4E/+G0lKfv4kk/5Izdg=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "b599843bad24621dcaa5ab60dac98f9b0eb1cabe",
+        "rev": "ab0f3607a6c7486ea22229b92ed2d355f1482ee0",
         "type": "github"
       },
       "original": {
@@ -163,6 +179,7 @@
       "inputs": {
         "agenix": "agenix",
         "disko": "disko",
+        "juicefs-csi-driver": "juicefs-csi-driver",
         "kubenix": "kubenix",
         "nixpkgs": "nixpkgs",
         "vscode-server": "vscode-server"
