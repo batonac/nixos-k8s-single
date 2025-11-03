@@ -10,8 +10,8 @@ set -euo pipefail
 CERT_DIR="${CERT_DIR:-./k8s-pki}"
 MASTER_IP="${MASTER_IP:-10.0.0.10}"
 CLUSTER_NAME="${CLUSTER_NAME:-kubernetes}"
-SERVICE_CIDR="${SERVICE_CIDR:-10.96.0.0/12}"
-CLUSTER_DNS="${CLUSTER_DNS:-10.96.0.10}"
+SERVICE_CIDR="${SERVICE_CIDR:-10.43.0.0/16}"
+CLUSTER_DNS="${CLUSTER_DNS:-10.43.0.10}"
 KEY_PATH="${KEY_PATH:-/home/batonac/.ssh/id_agenix}"
 FQDN="${FQDN:-k3s-dev.batonac.com}"
 TEMP_CERTS_DIR=$(mktemp -d)
@@ -58,10 +58,18 @@ check_dependencies() {
 # Encrypt and save to agenix
 encrypt_to_agenix() {
     local data="$1"
-    local key_name="$2"
+    local secret_file="$2"
     
-    log_info "Encrypting $key_name to agenix..."
-    echo "$data" | agenix -e "$key_name" -i "$KEY_PATH"
+    log_info "Encrypting $secret_file to agenix..."
+    
+    # Write data to temp file
+    echo "$data" > "$TEMP_CERTS_DIR/temp_secret"
+    
+    # Encrypt using agenix
+    agenix -e "$secret_file" -i "$KEY_PATH" < "$TEMP_CERTS_DIR/temp_secret"
+    
+    # Clean up temp file
+    rm -f "$TEMP_CERTS_DIR/temp_secret"
 }
 
 # Create directory structure
@@ -221,8 +229,8 @@ IP.3 = 127.0.0.1
 EOF
 
     # Decrypt CA files temporarily
-    agenix -d secrets/k8s-ca.crt.age > $TEMP_CERTS_DIR/ca.pem
-    agenix -d secrets/k8s-ca.key.age > $TEMP_CERTS_DIR/ca-key.pem
+    agenix -d secrets/k8s-ca.crt.age -i "$KEY_PATH" > $TEMP_CERTS_DIR/ca.pem
+    agenix -d secrets/k8s-ca.key.age -i "$KEY_PATH" > $TEMP_CERTS_DIR/ca-key.pem
 
     openssl x509 -req -in $TEMP_CERTS_DIR/apiserver.csr \
         -CA $TEMP_CERTS_DIR/ca.pem -CAkey $TEMP_CERTS_DIR/ca-key.pem \
@@ -248,8 +256,8 @@ generate_admin_cert() {
         -subj "/CN=kubernetes-admin/O=system:masters"
     
     # Decrypt CA files temporarily
-    agenix -d secrets/k8s-ca.crt.age > $TEMP_CERTS_DIR/ca.pem
-    agenix -d secrets/k8s-ca.key.age > $TEMP_CERTS_DIR/ca-key.pem
+    agenix -d secrets/k8s-ca.crt.age -i "$KEY_PATH" > $TEMP_CERTS_DIR/ca.pem
+    agenix -d secrets/k8s-ca.key.age -i "$KEY_PATH" > $TEMP_CERTS_DIR/ca-key.pem
 
     openssl x509 -req -in $TEMP_CERTS_DIR/admin.csr \
         -CA $TEMP_CERTS_DIR/ca.pem -CAkey $TEMP_CERTS_DIR/ca-key.pem \
@@ -290,9 +298,9 @@ generate_kubeconfig() {
     log_info "Generating kubeconfig for $user..."
     
     # Decrypt CA files temporarily
-    agenix -d secrets/k8s-ca.crt.age > $TEMP_CERTS_DIR/ca.pem
-    agenix -d "$cert_name" > $TEMP_CERTS_DIR/cert.pem
-    agenix -d "$key_name" > $TEMP_CERTS_DIR/key.pem
+    agenix -d secrets/k8s-ca.crt.age -i "$KEY_PATH" > $TEMP_CERTS_DIR/ca.pem
+    agenix -d "$cert_name" -i "$KEY_PATH" > $TEMP_CERTS_DIR/cert.pem
+    agenix -d "$key_name" -i "$KEY_PATH" > $TEMP_CERTS_DIR/key.pem
     
     local ca_data=$(base64 -w 0 $TEMP_CERTS_DIR/ca.pem)
     local cert_data=$(base64 -w 0 $TEMP_CERTS_DIR/cert.pem)
@@ -355,8 +363,8 @@ IP.2 = 127.0.0.1
 EOF
 
     # Decrypt CA files temporarily
-    agenix -d secrets/k8s-ca.crt.age > $TEMP_CERTS_DIR/ca.pem
-    agenix -d secrets/k8s-ca.key.age > $TEMP_CERTS_DIR/ca-key.pem
+    agenix -d secrets/k8s-ca.crt.age -i "$KEY_PATH" > $TEMP_CERTS_DIR/ca.pem
+    agenix -d secrets/k8s-ca.key.age -i "$KEY_PATH" > $TEMP_CERTS_DIR/ca-key.pem
 
     openssl x509 -req -in $TEMP_CERTS_DIR/kubelet-server.csr \
         -CA $TEMP_CERTS_DIR/ca.pem -CAkey $TEMP_CERTS_DIR/ca-key.pem \
@@ -387,8 +395,8 @@ generate_client_cert() {
         -subj "/CN=$cn/O=$org"
     
     # Decrypt CA files temporarily
-    agenix -d secrets/k8s-ca.crt.age > $TEMP_CERTS_DIR/ca.pem
-    agenix -d secrets/k8s-ca.key.age > $TEMP_CERTS_DIR/ca-key.pem
+    agenix -d secrets/k8s-ca.crt.age -i "$KEY_PATH" > $TEMP_CERTS_DIR/ca.pem
+    agenix -d secrets/k8s-ca.key.age -i "$KEY_PATH" > $TEMP_CERTS_DIR/ca-key.pem
     
     openssl x509 -req -in "$TEMP_CERTS_DIR/${component}.csr" \
         -CA $TEMP_CERTS_DIR/ca.pem -CAkey $TEMP_CERTS_DIR/ca-key.pem \
@@ -461,11 +469,14 @@ main() {
         "secrets/k8s-kubelet.key.age" \
         "secrets/k8s-kubelet.kubeconfig.age"
     
+    # Clean up temp directory
+    rm -rf "$TEMP_CERTS_DIR"
+    
     log_info "Certificate generation completed successfully!"
     log_info ""
     log_info "All certificates and kubeconfig files are encrypted in agenix."
     log_info "To decrypt the admin kubeconfig:"
-    log_info "  agenix -d secrets/k8s-admin.kubeconfig.age > ~/.kube/config"
+    log_info "  agenix -d secrets/k8s-admin.kubeconfig.age -i $KEY_PATH > ~/.kube/config"
 }
 
 # Handle command line arguments
@@ -477,7 +488,7 @@ case "${1:-}" in
         echo "  CERT_DIR       Certificate output directory (default: ./k8s-pki)"
         echo "  MASTER_IP      Master node IP address (default: 10.0.0.10)"
         echo "  CLUSTER_NAME   Cluster name (default: kubernetes)"
-        echo "  SERVICE_CIDR   Service network CIDR (default: 10.96.0.0/12)"
+        echo "  SERVICE_CIDR   Service network CIDR (default: 10.43.0.0/16)"
         echo ""
         echo "Example:"
         echo "  MASTER_IP=192.168.1.100 CERT_DIR=/etc/kubernetes/pki $0"
