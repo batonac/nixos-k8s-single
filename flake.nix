@@ -542,49 +542,103 @@
                     group = "kubernetes";
                     mode = "0440";
                   };
+
+                  # Component certificates
+                  k8s-controller-manager-crt = {
+                    file = ./secrets/k8s-controller-manager.crt.age;
+                    path = "/var/lib/kubernetes/pki/controller-manager.crt";
+                    owner = "root";
+                    group = "root";
+                    mode = "0400";
+                  };
+                  k8s-controller-manager-key = {
+                    file = ./secrets/k8s-controller-manager.key.age;
+                    path = "/var/lib/kubernetes/pki/controller-manager.key";
+                    owner = "root";
+                    group = "root";
+                    mode = "0400";
+                  };
+                  k8s-scheduler-crt = {
+                    file = ./secrets/k8s-scheduler.crt.age;
+                    path = "/var/lib/kubernetes/pki/scheduler.crt";
+                    owner = "root";
+                    group = "root";
+                    mode = "0400";
+                  };
+                  k8s-scheduler-key = {
+                    file = ./secrets/k8s-scheduler.key.age;
+                    path = "/var/lib/kubernetes/pki/scheduler.key";
+                    owner = "root";
+                    group = "root";
+                    mode = "0400";
+                  };
+                  k8s-proxy-crt = {
+                    file = ./secrets/k8s-proxy.crt.age;
+                    path = "/var/lib/kubernetes/pki/proxy.crt";
+                    owner = "root";
+                    group = "root";
+                    mode = "0400";
+                  };
+                  k8s-proxy-key = {
+                    file = ./secrets/k8s-proxy.key.age;
+                    path = "/var/lib/kubernetes/pki/proxy.key";
+                    owner = "root";
+                    group = "root";
+                    mode = "0400";
+                  };
+                  k8s-kubelet-crt = {
+                    file = ./secrets/k8s-kubelet.crt.age;
+                    path = "/var/lib/kubernetes/pki/kubelet.crt";
+                    owner = "root";
+                    group = "root";
+                    mode = "0400";
+                  };
+                  k8s-kubelet-key = {
+                    file = ./secrets/k8s-kubelet.key.age;
+                    path = "/var/lib/kubernetes/pki/kubelet.key";
+                    owner = "root";
+                    group = "root";
+                    mode = "0400";
+                  };
+
+                  # Component kubeconfig files
+                  k8s-controller-manager-kubeconfig = {
+                    file = ./secrets/k8s-controller-manager.kubeconfig.age;
+                    path = "/etc/kubernetes/controller-manager.kubeconfig";
+                    owner = "root";
+                    group = "kubernetes";
+                    mode = "0440";
+                  };
+                  k8s-scheduler-kubeconfig = {
+                    file = ./secrets/k8s-scheduler.kubeconfig.age;
+                    path = "/etc/kubernetes/scheduler.kubeconfig";
+                    owner = "root";
+                    group = "kubernetes";
+                    mode = "0440";
+                  };
+                  k8s-proxy-kubeconfig = {
+                    file = ./secrets/k8s-proxy.kubeconfig.age;
+                    path = "/etc/kubernetes/proxy.kubeconfig";
+                    owner = "root";
+                    group = "kubernetes";
+                    mode = "0440";
+                  };
+                  k8s-kubelet-kubeconfig = {
+                    file = ./secrets/k8s-kubelet.kubeconfig.age;
+                    path = "/etc/kubernetes/kubelet.kubeconfig";
+                    owner = "root";
+                    group = "kubernetes";
+                    mode = "0440";
+                  };
                 };
 
                 environment = {
                   etc = {
                     "cni/net.d/10-crio-bridge.conflist".enable = false;
                     "cni/net.d/99-loopback.conflist".enable = false;
-
-                    # Create cluster-admin kubeconfig using internal admin cert (dual PKI: internal CA + external ACME)
-                    "kubernetes/admin.kubeconfig".text = builtins.toJSON {
-                      apiVersion = "v1";
-                      kind = "Config";
-                      clusters = [
-                        {
-                          name = "local";
-                          cluster = {
-                            certificate-authority = "/var/lib/kubernetes/pki/ca.crt";
-                            server = "https://${fqdn}:6443";
-                          };
-                        }
-                      ];
-                      users = [
-                        {
-                          name = "admin";
-                          user = {
-                            client-certificate = "/var/lib/kubernetes/pki/admin.crt";
-                            client-key = "/var/lib/kubernetes/pki/admin.key";
-                          };
-                        }
-                      ];
-                      contexts = [
-                        {
-                          context = {
-                            cluster = "local";
-                            user = "admin";
-                          };
-                          name = "local";
-                        }
-                      ];
-                      current-context = "local";
-                    };
                   };
 
-                  # Set system-wide KUBECONFIG to internal admin kubeconfig
+                  # Set system-wide KUBECONFIG to agenix-decrypted admin kubeconfig
                   variables = {
                     KUBECONFIG = "/etc/kubernetes/admin.kubeconfig";
                   };
@@ -668,19 +722,20 @@
                         keyFile = "/var/lib/etcd/pki/apiserver-client.key";
                       };
                       clientCaFile = "/var/lib/kubernetes/pki/ca.crt";
-                      extraFlags = [
-                        "--tls-sni-cert-key=${fqdn}=/var/lib/acme/${fqdn}/cert.pem,/var/lib/acme/${fqdn}/key.pem"
-                      ];
                     };
 
                     controllerManager = {
                       enable = true;
                       bindAddress = "0.0.0.0";
                       clusterCidr = "10.42.0.0/16";
-                      rootCaFile = "/var/lib/acme/${fqdn}/chain.pem";
+                      rootCaFile = "/var/lib/kubernetes/pki/ca.crt";
                       serviceAccountKeyFile = "/var/lib/kubernetes/pki/service-account.crt";
-                      tlsCertFile = "/var/lib/acme/${fqdn}/cert.pem";
-                      tlsKeyFile = "/var/lib/acme/${fqdn}/key.pem";
+                      kubeconfig = {
+                        caFile = "/var/lib/kubernetes/pki/ca.crt";
+                        certFile = "/var/lib/kubernetes/pki/controller-manager.crt";
+                        keyFile = "/var/lib/kubernetes/pki/controller-manager.key";
+                        server = "https://${fqdn}:6443";
+                      };
                     };
 
                     kubeconfig = {
@@ -693,25 +748,14 @@
                     # Seed container images and kubelet config
                     kubelet = {
                       containerRuntimeEndpoint = "unix:///run/crio/crio.sock";
-                      seedDockerImages = [
-                        (pkgs.dockerTools.pullImage {
-                          imageName = "coredns/coredns";
-                          imageDigest = "sha256:a0ead06651cf580044aeb0a0feba63591858fb2e43ade8c9dea45a6a89ae7e5e";
-                          finalImageTag = "1.10.1";
-                          sha256 = "0wg696920smmal7552a2zdhfncndn5kfammfa8bk8l7dz9bhk0y1";
-                        })
-                        # (pkgs.dockerTools.pullImage {
-                        #   imageName = "alpine";
-                        #   finalImageTag = "latest";
-                        #   sha256 = "sha256-6457d53fb065d6f250e1504b9bc42d5b6c65941d57532c072d929dd0628977d0";
-                        # })
-                        # (pkgs.dockerTools.pullImage {
-                        #   imageName = "nginx";
-                        #   finalImageTag = "1.25";
-                        #   sha256 = "sha256-4c0fdaa8b6341bfdeca5f18f7837462c80cff90527ee35ef185571e1c327beac";
-                        # })
-                      ];
-
+                      kubeconfig = {
+                        caFile = "/var/lib/kubernetes/pki/ca.crt";
+                        certFile = "/var/lib/kubernetes/pki/kubelet.crt";
+                        keyFile = "/var/lib/kubernetes/pki/kubelet.key";
+                        server = "https://${fqdn}:6443";
+                      };
+                      tlsCertFile = "/var/lib/kubernetes/pki/kubelet-server.crt";
+                      tlsKeyFile = "/var/lib/kubernetes/pki/kubelet-server.key";
                       cni = {
                         packages = with pkgs; [
                           cni-plugins
@@ -731,10 +775,32 @@
                       };
                     };
 
+                    proxy = {
+                      enable = true;
+                      kubeconfig = {
+                        caFile = "/var/lib/kubernetes/pki/ca.crt";
+                        certFile = "/var/lib/kubernetes/pki/proxy.crt";
+                        keyFile = "/var/lib/kubernetes/pki/proxy.key";
+                        server = "https://${fqdn}:6443";
+                      };
+                    };
+
+                    addons = {
+                      dns = {
+                        enable = true;
+                      };
+                    };
+
                     scheduler = {
                       enable = true;
                       address = "0.0.0.0";
                       port = 10251;
+                      kubeconfig = {
+                        caFile = "/var/lib/kubernetes/pki/ca.crt";
+                        certFile = "/var/lib/kubernetes/pki/scheduler.crt";
+                        keyFile = "/var/lib/kubernetes/pki/scheduler.key";
+                        server = "https://${fqdn}:6443";
+                      };
                     };
 
                   };

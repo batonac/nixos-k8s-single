@@ -12,6 +12,10 @@ MASTER_IP="${MASTER_IP:-10.0.0.10}"
 CLUSTER_NAME="${CLUSTER_NAME:-kubernetes}"
 SERVICE_CIDR="${SERVICE_CIDR:-10.96.0.0/12}"
 CLUSTER_DNS="${CLUSTER_DNS:-10.96.0.10}"
+KEY_PATH="${KEY_PATH:-/home/batonac/.ssh/id_agenix}"
+FQDN="${FQDN:-k3s-dev.batonac.com}"
+TEMP_CERTS_DIR=$(mktemp -d)
+
 
 # Certificate validity (10 years)
 CERT_DAYS=3650
@@ -57,7 +61,7 @@ encrypt_to_agenix() {
     local key_name="$2"
     
     log_info "Encrypting $key_name to agenix..."
-    echo "$data" | agenix -e "$key_name"
+    echo "$data" | agenix -e "$key_name" -i "$KEY_PATH"
 }
 
 # Create directory structure
@@ -72,18 +76,18 @@ generate_ca() {
     log_info "Generating Cluster CA certificate..."
     
     # CA private key
-    openssl genrsa -out /tmp/ca-key.pem 4096
+    openssl genrsa -out $TEMP_CERTS_DIR/ca-key.pem 4096
     
     # CA certificate
-    openssl req -new -x509 -days "$CERT_DAYS" -key /tmp/ca-key.pem \
-        -out /tmp/ca.pem -subj "/CN=kubernetes-ca/O=Kubernetes"
+    openssl req -new -x509 -days "$CERT_DAYS" -key $TEMP_CERTS_DIR/ca-key.pem \
+        -out $TEMP_CERTS_DIR/ca.pem -subj "/CN=kubernetes-ca/O=Kubernetes"
     
     # Encrypt to agenix
-    encrypt_to_agenix "$(cat /tmp/ca.pem)" "secrets/k8s-ca.crt.age"
-    encrypt_to_agenix "$(cat /tmp/ca-key.pem)" "secrets/k8s-ca.key.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/ca.pem)" "secrets/k8s-ca.crt.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/ca-key.pem)" "secrets/k8s-ca.key.age"
     
     # Clean up temp files
-    rm -f /tmp/ca.pem /tmp/ca-key.pem
+    rm -f $TEMP_CERTS_DIR/ca.pem $TEMP_CERTS_DIR/ca-key.pem
         
     log_info "CA certificate encrypted to agenix"
 }
@@ -93,22 +97,22 @@ generate_etcd_certs() {
     log_info "Generating etcd certificates..."
     
     # etcd CA
-    openssl genrsa -out /tmp/etcd-ca-key.pem 4096
-    openssl req -new -x509 -days "$CERT_DAYS" -key /tmp/etcd-ca-key.pem \
-        -out /tmp/etcd-ca.pem -subj "/CN=etcd-ca/O=Kubernetes"
+    openssl genrsa -out $TEMP_CERTS_DIR/etcd-ca-key.pem 4096
+    openssl req -new -x509 -days "$CERT_DAYS" -key $TEMP_CERTS_DIR/etcd-ca-key.pem \
+        -out $TEMP_CERTS_DIR/etcd-ca.pem -subj "/CN=etcd-ca/O=Kubernetes"
     
     # Encrypt etcd CA to agenix
-    encrypt_to_agenix "$(cat /tmp/etcd-ca.pem)" "secrets/etcd-ca.crt.age"
-    encrypt_to_agenix "$(cat /tmp/etcd-ca-key.pem)" "secrets/etcd-ca.key.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/etcd-ca.pem)" "secrets/etcd-ca.crt.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/etcd-ca-key.pem)" "secrets/etcd-ca.key.age"
     
     # etcd server certificate
-    openssl genrsa -out /tmp/etcd-server-key.pem 2048
-    openssl req -new -key /tmp/etcd-server-key.pem \
-        -out /tmp/etcd-server.csr \
+    openssl genrsa -out $TEMP_CERTS_DIR/etcd-server-key.pem 2048
+    openssl req -new -key $TEMP_CERTS_DIR/etcd-server-key.pem \
+        -out $TEMP_CERTS_DIR/etcd-server.csr \
         -subj "/CN=etcd-server/O=Kubernetes"
     
     # etcd server certificate with SANs
-    cat > /tmp/etcd-server-openssl.conf <<EOF
+    cat > $TEMP_CERTS_DIR/etcd-server-openssl.conf <<EOF
 [req]
 distinguished_name = req_distinguished_name
 req_extensions = v3_req
@@ -125,77 +129,77 @@ IP.1 = 127.0.0.1
 IP.2 = $MASTER_IP
 EOF
 
-    openssl x509 -req -in /tmp/etcd-server.csr \
-        -CA /tmp/etcd-ca.pem -CAkey /tmp/etcd-ca-key.pem \
-        -CAcreateserial -out /tmp/etcd-server.pem \
+    openssl x509 -req -in $TEMP_CERTS_DIR/etcd-server.csr \
+        -CA $TEMP_CERTS_DIR/etcd-ca.pem -CAkey $TEMP_CERTS_DIR/etcd-ca-key.pem \
+        -CAcreateserial -out $TEMP_CERTS_DIR/etcd-server.pem \
         -days "$CERT_DAYS" -extensions v3_req \
-        -extfile /tmp/etcd-server-openssl.conf
+        -extfile $TEMP_CERTS_DIR/etcd-server-openssl.conf
     
     # Encrypt etcd server cert to agenix
-    encrypt_to_agenix "$(cat /tmp/etcd-server.pem)" "secrets/etcd-server.crt.age"
-    encrypt_to_agenix "$(cat /tmp/etcd-server-key.pem)" "secrets/etcd-server.key.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/etcd-server.pem)" "secrets/etcd-server.crt.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/etcd-server-key.pem)" "secrets/etcd-server.key.age"
     
     # etcd peer certificate (for clustering)
-    openssl genrsa -out /tmp/etcd-peer-key.pem 2048
-    openssl req -new -key /tmp/etcd-peer-key.pem \
-        -out /tmp/etcd-peer.csr \
+    openssl genrsa -out $TEMP_CERTS_DIR/etcd-peer-key.pem 2048
+    openssl req -new -key $TEMP_CERTS_DIR/etcd-peer-key.pem \
+        -out $TEMP_CERTS_DIR/etcd-peer.csr \
         -subj "/CN=etcd-peer/O=Kubernetes"
     
-    openssl x509 -req -in /tmp/etcd-peer.csr \
-        -CA /tmp/etcd-ca.pem -CAkey /tmp/etcd-ca-key.pem \
-        -CAcreateserial -out /tmp/etcd-peer.pem \
+    openssl x509 -req -in $TEMP_CERTS_DIR/etcd-peer.csr \
+        -CA $TEMP_CERTS_DIR/etcd-ca.pem -CAkey $TEMP_CERTS_DIR/etcd-ca-key.pem \
+        -CAcreateserial -out $TEMP_CERTS_DIR/etcd-peer.pem \
         -days "$CERT_DAYS" -extensions v3_req \
-        -extfile /tmp/etcd-server-openssl.conf
+        -extfile $TEMP_CERTS_DIR/etcd-server-openssl.conf
     
     # Encrypt etcd peer cert to agenix
-    encrypt_to_agenix "$(cat /tmp/etcd-peer.pem)" "secrets/etcd-peer.crt.age"
-    encrypt_to_agenix "$(cat /tmp/etcd-peer-key.pem)" "secrets/etcd-peer.key.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/etcd-peer.pem)" "secrets/etcd-peer.crt.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/etcd-peer-key.pem)" "secrets/etcd-peer.key.age"
     
     # etcd client certificate for apiserver
-    openssl genrsa -out /tmp/etcd-apiserver-client-key.pem 2048
-    openssl req -new -key /tmp/etcd-apiserver-client-key.pem \
-        -out /tmp/etcd-apiserver-client.csr \
+    openssl genrsa -out $TEMP_CERTS_DIR/etcd-apiserver-client-key.pem 2048
+    openssl req -new -key $TEMP_CERTS_DIR/etcd-apiserver-client-key.pem \
+        -out $TEMP_CERTS_DIR/etcd-apiserver-client.csr \
         -subj "/CN=etcd-apiserver-client/O=Kubernetes"
     
-    openssl x509 -req -in /tmp/etcd-apiserver-client.csr \
-        -CA /tmp/etcd-ca.pem -CAkey /tmp/etcd-ca-key.pem \
-        -CAcreateserial -out /tmp/etcd-apiserver-client.pem \
+    openssl x509 -req -in $TEMP_CERTS_DIR/etcd-apiserver-client.csr \
+        -CA $TEMP_CERTS_DIR/etcd-ca.pem -CAkey $TEMP_CERTS_DIR/etcd-ca-key.pem \
+        -CAcreateserial -out $TEMP_CERTS_DIR/etcd-apiserver-client.pem \
         -days "$CERT_DAYS"
     
     # Encrypt etcd apiserver client cert to agenix
-    encrypt_to_agenix "$(cat /tmp/etcd-apiserver-client.pem)" "secrets/etcd-apiserver-client.crt.age"
-    encrypt_to_agenix "$(cat /tmp/etcd-apiserver-client-key.pem)" "secrets/etcd-apiserver-client.key.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/etcd-apiserver-client.pem)" "secrets/etcd-apiserver-client.crt.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/etcd-apiserver-client-key.pem)" "secrets/etcd-apiserver-client.key.age"
     
     # etcd client certificate for flannel
-    openssl genrsa -out /tmp/etcd-flannel-client-key.pem 2048
-    openssl req -new -key /tmp/etcd-flannel-client-key.pem \
-        -out /tmp/etcd-flannel-client.csr \
+    openssl genrsa -out $TEMP_CERTS_DIR/etcd-flannel-client-key.pem 2048
+    openssl req -new -key $TEMP_CERTS_DIR/etcd-flannel-client-key.pem \
+        -out $TEMP_CERTS_DIR/etcd-flannel-client.csr \
         -subj "/CN=etcd-flannel-client/O=Kubernetes"
     
-    openssl x509 -req -in /tmp/etcd-flannel-client.csr \
-        -CA /tmp/etcd-ca.pem -CAkey /tmp/etcd-ca-key.pem \
-        -CAcreateserial -out /tmp/etcd-flannel-client.pem \
+    openssl x509 -req -in $TEMP_CERTS_DIR/etcd-flannel-client.csr \
+        -CA $TEMP_CERTS_DIR/etcd-ca.pem -CAkey $TEMP_CERTS_DIR/etcd-ca-key.pem \
+        -CAcreateserial -out $TEMP_CERTS_DIR/etcd-flannel-client.pem \
         -days "$CERT_DAYS"
     
     # Encrypt etcd flannel client cert to agenix
-    encrypt_to_agenix "$(cat /tmp/etcd-flannel-client.pem)" "secrets/etcd-flannel-client.crt.age"
-    encrypt_to_agenix "$(cat /tmp/etcd-flannel-client-key.pem)" "secrets/etcd-flannel-client.key.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/etcd-flannel-client.pem)" "secrets/etcd-flannel-client.crt.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/etcd-flannel-client-key.pem)" "secrets/etcd-flannel-client.key.age"
     
     # Clean up temp files
-    rm -f /tmp/etcd-* 
+    rm -f $TEMP_CERTS_DIR/etcd-* 
 }
 
 # Generate API server certificate
 generate_apiserver_cert() {
     log_info "Generating API server certificate..."
     
-    openssl genrsa -out /tmp/apiserver-key.pem 2048
-    openssl req -new -key /tmp/apiserver-key.pem \
-        -out /tmp/apiserver.csr \
+    openssl genrsa -out $TEMP_CERTS_DIR/apiserver-key.pem 2048
+    openssl req -new -key $TEMP_CERTS_DIR/apiserver-key.pem \
+        -out $TEMP_CERTS_DIR/apiserver.csr \
         -subj "/CN=kube-apiserver/O=Kubernetes"
     
     # Use config variables for FQDN
-    cat > /tmp/apiserver-openssl.conf <<EOF
+    cat > $TEMP_CERTS_DIR/apiserver-openssl.conf <<EOF
 [req]
 distinguished_name = req_distinguished_name
 req_extensions = v3_req
@@ -210,70 +214,70 @@ DNS.2 = kubernetes.default
 DNS.3 = kubernetes.default.svc
 DNS.4 = kubernetes.default.svc.cluster.local
 DNS.5 = localhost
-DNS.6 = ${FQDN:-k3s-dev.batonac.com}
+DNS.6 = $FQDN
 IP.1 = 10.43.0.1
 IP.2 = $MASTER_IP
 IP.3 = 127.0.0.1
 EOF
 
     # Decrypt CA files temporarily
-    agenix -d secrets/k8s-ca.crt.age > /tmp/ca.pem
-    agenix -d secrets/k8s-ca.key.age > /tmp/ca-key.pem
+    agenix -d secrets/k8s-ca.crt.age > $TEMP_CERTS_DIR/ca.pem
+    agenix -d secrets/k8s-ca.key.age > $TEMP_CERTS_DIR/ca-key.pem
 
-    openssl x509 -req -in /tmp/apiserver.csr \
-        -CA /tmp/ca.pem -CAkey /tmp/ca-key.pem \
-        -CAcreateserial -out /tmp/apiserver.pem \
+    openssl x509 -req -in $TEMP_CERTS_DIR/apiserver.csr \
+        -CA $TEMP_CERTS_DIR/ca.pem -CAkey $TEMP_CERTS_DIR/ca-key.pem \
+        -CAcreateserial -out $TEMP_CERTS_DIR/apiserver.pem \
         -days "$CERT_DAYS" -extensions v3_req \
-        -extfile /tmp/apiserver-openssl.conf
+        -extfile $TEMP_CERTS_DIR/apiserver-openssl.conf
     
     # Encrypt apiserver cert to agenix
-    encrypt_to_agenix "$(cat /tmp/apiserver.pem)" "secrets/k8s-apiserver.crt.age"
-    encrypt_to_agenix "$(cat /tmp/apiserver-key.pem)" "secrets/k8s-apiserver.key.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/apiserver.pem)" "secrets/k8s-apiserver.crt.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/apiserver-key.pem)" "secrets/k8s-apiserver.key.age"
     
     # Clean up temp files
-    rm -f /tmp/apiserver* /tmp/ca.pem /tmp/ca-key.pem
+    rm -f $TEMP_CERTS_DIR/apiserver* $TEMP_CERTS_DIR/ca.pem $TEMP_CERTS_DIR/ca-key.pem
 }
 
 # Generate admin client certificate
 generate_admin_cert() {
     log_info "Generating admin client certificate..."
     
-    openssl genrsa -out /tmp/admin-key.pem 2048
-    openssl req -new -key /tmp/admin-key.pem \
-        -out /tmp/admin.csr \
+    openssl genrsa -out $TEMP_CERTS_DIR/admin-key.pem 2048
+    openssl req -new -key $TEMP_CERTS_DIR/admin-key.pem \
+        -out $TEMP_CERTS_DIR/admin.csr \
         -subj "/CN=kubernetes-admin/O=system:masters"
     
     # Decrypt CA files temporarily
-    agenix -d secrets/k8s-ca.crt.age > /tmp/ca.pem
-    agenix -d secrets/k8s-ca.key.age > /tmp/ca-key.pem
+    agenix -d secrets/k8s-ca.crt.age > $TEMP_CERTS_DIR/ca.pem
+    agenix -d secrets/k8s-ca.key.age > $TEMP_CERTS_DIR/ca-key.pem
 
-    openssl x509 -req -in /tmp/admin.csr \
-        -CA /tmp/ca.pem -CAkey /tmp/ca-key.pem \
-        -CAcreateserial -out /tmp/admin.pem \
+    openssl x509 -req -in $TEMP_CERTS_DIR/admin.csr \
+        -CA $TEMP_CERTS_DIR/ca.pem -CAkey $TEMP_CERTS_DIR/ca-key.pem \
+        -CAcreateserial -out $TEMP_CERTS_DIR/admin.pem \
         -days "$CERT_DAYS"
     
     # Encrypt admin cert to agenix
-    encrypt_to_agenix "$(cat /tmp/admin.pem)" "secrets/k8s-admin.crt.age"
-    encrypt_to_agenix "$(cat /tmp/admin-key.pem)" "secrets/k8s-admin.key.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/admin.pem)" "secrets/k8s-admin.crt.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/admin-key.pem)" "secrets/k8s-admin.key.age"
     
     # Clean up temp files
-    rm -f /tmp/admin* /tmp/ca.pem /tmp/ca-key.pem
+    rm -f $TEMP_CERTS_DIR/admin* $TEMP_CERTS_DIR/ca.pem $TEMP_CERTS_DIR/ca-key.pem
 }
 
 # Generate service account key pair
 generate_service_account_keys() {
     log_info "Generating service account keys..."
     
-    openssl genrsa -out /tmp/service-account-key.pem 2048
-    openssl rsa -in /tmp/service-account-key.pem \
-        -pubout -out /tmp/service-account.pem
+    openssl genrsa -out $TEMP_CERTS_DIR/service-account-key.pem 2048
+    openssl rsa -in $TEMP_CERTS_DIR/service-account-key.pem \
+        -pubout -out $TEMP_CERTS_DIR/service-account.pem
     
     # Encrypt service account keys to agenix
-    encrypt_to_agenix "$(cat /tmp/service-account.pem)" "secrets/k8s-service-account.crt.age"
-    encrypt_to_agenix "$(cat /tmp/service-account-key.pem)" "secrets/k8s-service-account.key.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/service-account.pem)" "secrets/k8s-service-account.crt.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/service-account-key.pem)" "secrets/k8s-service-account.key.age"
     
     # Clean up temp files
-    rm -f /tmp/service-account*
+    rm -f $TEMP_CERTS_DIR/service-account*
 }
 
 # Generate kubeconfig file and encrypt to agenix
@@ -286,15 +290,15 @@ generate_kubeconfig() {
     log_info "Generating kubeconfig for $user..."
     
     # Decrypt CA files temporarily
-    agenix -d secrets/k8s-ca.crt.age > /tmp/ca.pem
-    agenix -d "$cert_name" > /tmp/cert.pem
-    agenix -d "$key_name" > /tmp/key.pem
+    agenix -d secrets/k8s-ca.crt.age > $TEMP_CERTS_DIR/ca.pem
+    agenix -d "$cert_name" > $TEMP_CERTS_DIR/cert.pem
+    agenix -d "$key_name" > $TEMP_CERTS_DIR/key.pem
     
-    local ca_data=$(base64 -w 0 /tmp/ca.pem)
-    local cert_data=$(base64 -w 0 /tmp/cert.pem)
-    local key_data=$(base64 -w 0 /tmp/key.pem)
+    local ca_data=$(base64 -w 0 $TEMP_CERTS_DIR/ca.pem)
+    local cert_data=$(base64 -w 0 $TEMP_CERTS_DIR/cert.pem)
+    local key_data=$(base64 -w 0 $TEMP_CERTS_DIR/key.pem)
     
-    cat > /tmp/kubeconfig <<EOF
+    cat > $TEMP_CERTS_DIR/kubeconfig <<EOF
 apiVersion: v1
 kind: Config
 clusters:
@@ -316,10 +320,10 @@ users:
 EOF
 
     # Encrypt kubeconfig to agenix
-    encrypt_to_agenix "$(cat /tmp/kubeconfig)" "$output_name"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/kubeconfig)" "$output_name"
     
     # Clean up temp files
-    rm -f /tmp/ca.pem /tmp/cert.pem /tmp/key.pem /tmp/kubeconfig
+    rm -f $TEMP_CERTS_DIR/ca.pem $TEMP_CERTS_DIR/cert.pem $TEMP_CERTS_DIR/key.pem $TEMP_CERTS_DIR/kubeconfig
 }
 
 # Generate kubelet server certificate (for a specific node)
@@ -329,12 +333,12 @@ generate_kubelet_server_cert() {
     
     log_info "Generating kubelet server certificate for $node_name..."
     
-    openssl genrsa -out /tmp/kubelet-server-key.pem 2048
-    openssl req -new -key /tmp/kubelet-server-key.pem \
-        -out /tmp/kubelet-server.csr \
+    openssl genrsa -out $TEMP_CERTS_DIR/kubelet-server-key.pem 2048
+    openssl req -new -key $TEMP_CERTS_DIR/kubelet-server-key.pem \
+        -out $TEMP_CERTS_DIR/kubelet-server.csr \
         -subj "/CN=system:node:$node_name/O=system:nodes"
     
-    cat > /tmp/kubelet-server-openssl.conf <<EOF
+    cat > $TEMP_CERTS_DIR/kubelet-server-openssl.conf <<EOF
 [req]
 distinguished_name = req_distinguished_name
 req_extensions = v3_req
@@ -351,21 +355,52 @@ IP.2 = 127.0.0.1
 EOF
 
     # Decrypt CA files temporarily
-    agenix -d secrets/k8s-ca.crt.age > /tmp/ca.pem
-    agenix -d secrets/k8s-ca.key.age > /tmp/ca-key.pem
+    agenix -d secrets/k8s-ca.crt.age > $TEMP_CERTS_DIR/ca.pem
+    agenix -d secrets/k8s-ca.key.age > $TEMP_CERTS_DIR/ca-key.pem
 
-    openssl x509 -req -in /tmp/kubelet-server.csr \
-        -CA /tmp/ca.pem -CAkey /tmp/ca-key.pem \
-        -CAcreateserial -out /tmp/kubelet-server.pem \
+    openssl x509 -req -in $TEMP_CERTS_DIR/kubelet-server.csr \
+        -CA $TEMP_CERTS_DIR/ca.pem -CAkey $TEMP_CERTS_DIR/ca-key.pem \
+        -CAcreateserial -out $TEMP_CERTS_DIR/kubelet-server.pem \
         -days "$CERT_DAYS" -extensions v3_req \
-        -extfile /tmp/kubelet-server-openssl.conf
+        -extfile $TEMP_CERTS_DIR/kubelet-server-openssl.conf
     
     # Encrypt kubelet certs to agenix
-    encrypt_to_agenix "$(cat /tmp/kubelet-server.pem)" "secrets/k8s-kubelet-server.crt.age"
-    encrypt_to_agenix "$(cat /tmp/kubelet-server-key.pem)" "secrets/k8s-kubelet-server.key.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/kubelet-server.pem)" "secrets/k8s-kubelet-server.crt.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/kubelet-server-key.pem)" "secrets/k8s-kubelet-server.key.age"
     
     # Clean up temp files
-    rm -f /tmp/kubelet-server* /tmp/ca.pem /tmp/ca-key.pem
+    rm -f $TEMP_CERTS_DIR/kubelet-server* $TEMP_CERTS_DIR/ca.pem $TEMP_CERTS_DIR/ca-key.pem
+}
+
+# Generate client certificates for Kubernetes components
+generate_client_cert() {
+    local component="$1"
+    local cn="$2"
+    local org="${3:-Kubernetes}"
+    local secret_prefix="$4"
+    
+    log_info "Generating $component client certificate..."
+    
+    openssl genrsa -out "$TEMP_CERTS_DIR/${component}-key.pem" 2048
+    openssl req -new -key "$TEMP_CERTS_DIR/${component}-key.pem" \
+        -out "$TEMP_CERTS_DIR/${component}.csr" \
+        -subj "/CN=$cn/O=$org"
+    
+    # Decrypt CA files temporarily
+    agenix -d secrets/k8s-ca.crt.age > $TEMP_CERTS_DIR/ca.pem
+    agenix -d secrets/k8s-ca.key.age > $TEMP_CERTS_DIR/ca-key.pem
+    
+    openssl x509 -req -in "$TEMP_CERTS_DIR/${component}.csr" \
+        -CA $TEMP_CERTS_DIR/ca.pem -CAkey $TEMP_CERTS_DIR/ca-key.pem \
+        -CAcreateserial -out "$TEMP_CERTS_DIR/${component}.pem" \
+        -days "$CERT_DAYS"
+    
+    # Encrypt to agenix
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/${component}.pem)" "secrets/${secret_prefix}.crt.age"
+    encrypt_to_agenix "$(cat $TEMP_CERTS_DIR/${component}-key.pem)" "secrets/${secret_prefix}.key.age"
+    
+    # Clean up temp files
+    rm -f "$TEMP_CERTS_DIR/${component}"* $TEMP_CERTS_DIR/ca.pem $TEMP_CERTS_DIR/ca-key.pem
 }
 
 # Main execution
@@ -394,11 +429,37 @@ main() {
     # Generate kubelet server certificate
     generate_kubelet_server_cert
     
-    # Generate admin kubeconfig
+    # Generate client certificates for components
+    generate_client_cert "controller-manager" "system:kube-controller-manager" "Kubernetes" "k8s-controller-manager"
+    generate_client_cert "scheduler" "system:kube-scheduler" "Kubernetes" "k8s-scheduler"
+    generate_client_cert "proxy" "system:kube-proxy" "Kubernetes" "k8s-proxy"
+    generate_client_cert "kubelet" "system:node:$(hostname)" "system:nodes" "k8s-kubelet"
+    
+    # Generate kubeconfig files
     generate_kubeconfig "admin" \
         "secrets/k8s-admin.crt.age" \
         "secrets/k8s-admin.key.age" \
         "secrets/k8s-admin.kubeconfig.age"
+    
+    generate_kubeconfig "controller-manager" \
+        "secrets/k8s-controller-manager.crt.age" \
+        "secrets/k8s-controller-manager.key.age" \
+        "secrets/k8s-controller-manager.kubeconfig.age"
+    
+    generate_kubeconfig "scheduler" \
+        "secrets/k8s-scheduler.crt.age" \
+        "secrets/k8s-scheduler.key.age" \
+        "secrets/k8s-scheduler.kubeconfig.age"
+    
+    generate_kubeconfig "kube-proxy" \
+        "secrets/k8s-proxy.crt.age" \
+        "secrets/k8s-proxy.key.age" \
+        "secrets/k8s-proxy.kubeconfig.age"
+    
+    generate_kubeconfig "kubelet" \
+        "secrets/k8s-kubelet.crt.age" \
+        "secrets/k8s-kubelet.key.age" \
+        "secrets/k8s-kubelet.kubeconfig.age"
     
     log_info "Certificate generation completed successfully!"
     log_info ""
