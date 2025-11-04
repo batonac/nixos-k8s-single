@@ -3,6 +3,7 @@
 
 # Certificate output (temporary plaintext certs)
 k8s-pki/
+kubeconfig*
 
 # Build outputs
 result
