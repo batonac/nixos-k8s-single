@@ -731,7 +731,7 @@
                       bindAddress = "0.0.0.0";
                       clusterCidr = "10.42.0.0/16";
                       rootCaFile = config.age.secrets.k8s-ca-crt.path;
-                      serviceAccountKeyFile = config.age.secrets.k8s-service-account-crt.path;
+                      serviceAccountKeyFile = config.age.secrets.k8s-service-account-key.path; # ✅ Use PRIVATE key for signing
                       kubeconfig = {
                         caFile = config.age.secrets.k8s-ca-crt.path;
                         certFile = config.age.secrets.k8s-controller-manager-crt.path;
@@ -884,7 +884,13 @@
                     kube-controller-manager.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
                     kube-scheduler.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
                     kube-proxy.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
-                    kubelet.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
+
+                    # Kubelet must wait for Flannel to write CNI config
+                    kubelet = {
+                      serviceConfig.SupplementaryGroups = [ "kubernetes" ];
+                      requires = [ "flannel.service" ];
+                      after = [ "flannel.service" ];
+                    };
                   };
                 };
 
