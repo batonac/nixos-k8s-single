@@ -133,6 +133,7 @@ subjectAltName = @alt_names
 DNS.1 = localhost
 DNS.2 = etcd.local
 DNS.3 = etcd.kube-system.svc.cluster.local
+DNS.4 = $FQDN
 IP.1 = 127.0.0.1
 IP.2 = $MASTER_IP
 EOF
