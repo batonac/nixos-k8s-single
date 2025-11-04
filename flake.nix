@@ -389,156 +389,156 @@
                   # Internal Kubernetes PKI (generate .age files via generate-internal-pki.sh)
                   k8s-ca-crt = {
                     file = ./secrets/k8s-ca.crt.age;
-                    path = "/var/lib/kubernetes/pki/ca.crt";
+                    #path = "/var/lib/kubernetes/pki/ca.crt";
                     owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    group = "kubernetes";
+                    mode = "0440";
                   };
                   k8s-ca-key = {
                     file = ./secrets/k8s-ca.key.age;
-                    path = "/var/lib/kubernetes/pki/ca.key";
+                    #path = "/var/lib/kubernetes/pki/ca.key";
                     owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    group = "kubernetes";
+                    mode = "0440";
                   };
                   k8s-apiserver-crt = {
                     file = ./secrets/k8s-apiserver.crt.age;
-                    path = "/var/lib/kubernetes/pki/apiserver.crt";
+                    #path = "/var/lib/kubernetes/pki/apiserver.crt";
                     owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    group = "kubernetes";
+                    mode = "0440";
                   };
                   k8s-apiserver-key = {
                     file = ./secrets/k8s-apiserver.key.age;
-                    path = "/var/lib/kubernetes/pki/apiserver.key";
+                    #path = "/var/lib/kubernetes/pki/apiserver.key";
                     owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    group = "kubernetes";
+                    mode = "0440";
                   };
                   k8s-admin-crt = {
                     file = ./secrets/k8s-admin.crt.age;
-                    path = "/var/lib/kubernetes/pki/admin.crt";
+                    #path = "/var/lib/kubernetes/pki/admin.crt";
                     owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    group = "kubernetes";
+                    mode = "0440";
                   };
                   k8s-admin-key = {
                     file = ./secrets/k8s-admin.key.age;
-                    path = "/var/lib/kubernetes/pki/admin.key";
+                    #path = "/var/lib/kubernetes/pki/admin.key";
                     owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    group = "kubernetes";
+                    mode = "0440";
                   };
 
                   # etcd dedicated PKI (generated via generate-internal-pki.sh)
                   etcd-ca-crt = {
                     file = ./secrets/etcd-ca.crt.age;
-                    path = "/var/lib/etcd/pki/ca.crt";
+                    #path = "/var/lib/etcd/pki/ca.crt";
                     owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    group = "etcd";
+                    mode = "0440";
                   };
                   etcd-ca-key = {
                     file = ./secrets/etcd-ca.key.age;
-                    path = "/var/lib/etcd/pki/ca.key";
+                    #path = "/var/lib/etcd/pki/ca.key";
                     owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    group = "etcd";
+                    mode = "0440";
                   };
                   etcd-server-crt = {
                     file = ./secrets/etcd-server.crt.age;
-                    path = "/var/lib/etcd/pki/server.crt";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/etcd/pki/server.crt";
+                    owner = "etcd";
+                    group = "etcd";
+                    mode = "0440";
                   };
                   etcd-server-key = {
                     file = ./secrets/etcd-server.key.age;
-                    path = "/var/lib/etcd/pki/server.key";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/etcd/pki/server.key";
+                    owner = "etcd";
+                    group = "etcd";
+                    mode = "0440";
                   };
                   etcd-peer-crt = {
                     file = ./secrets/etcd-peer.crt.age;
-                    path = "/var/lib/etcd/pki/peer.crt";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/etcd/pki/peer.crt";
+                    owner = "etcd";
+                    group = "etcd";
+                    mode = "0440";
                   };
                   etcd-peer-key = {
                     file = ./secrets/etcd-peer.key.age;
-                    path = "/var/lib/etcd/pki/peer.key";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/etcd/pki/peer.key";
+                    owner = "etcd";
+                    group = "etcd";
+                    mode = "0440";
                   };
                   etcd-apiserver-client-crt = {
                     file = ./secrets/etcd-apiserver-client.crt.age;
-                    path = "/var/lib/etcd/pki/apiserver-client.crt";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/etcd/pki/apiserver-client.crt";
+                    owner = "etcd";
+                    group = "etcd";
+                    mode = "0440";
                   };
                   etcd-apiserver-client-key = {
                     file = ./secrets/etcd-apiserver-client.key.age;
-                    path = "/var/lib/etcd/pki/apiserver-client.key";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/etcd/pki/apiserver-client.key";
+                    owner = "etcd";
+                    group = "etcd";
+                    mode = "0440";
                   };
                   etcd-flannel-client-crt = {
                     file = ./secrets/etcd-flannel-client.crt.age;
-                    path = "/var/lib/etcd/pki/flannel-client.crt";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/etcd/pki/flannel-client.crt";
+                    owner = "etcd";
+                    group = "etcd";
+                    mode = "0440";
                   };
                   etcd-flannel-client-key = {
                     file = ./secrets/etcd-flannel-client.key.age;
-                    path = "/var/lib/etcd/pki/flannel-client.key";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/etcd/pki/flannel-client.key";
+                    owner = "etcd";
+                    group = "etcd";
+                    mode = "0440";
                   };
 
                   # Service account keys
                   k8s-service-account-crt = {
                     file = ./secrets/k8s-service-account.crt.age;
-                    path = "/var/lib/kubernetes/pki/service-account.crt";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/kubernetes/pki/service-account.crt";
+                    owner = "kubernetes";
+                    group = "kubernetes";
+                    mode = "0440";
                   };
                   k8s-service-account-key = {
                     file = ./secrets/k8s-service-account.key.age;
-                    path = "/var/lib/kubernetes/pki/service-account.key";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/kubernetes/pki/service-account.key";
+                    owner = "kubernetes";
+                    group = "kubernetes";
+                    mode = "0440";
                   };
 
                   # Kubelet server certificates
                   k8s-kubelet-server-crt = {
                     file = ./secrets/k8s-kubelet-server.crt.age;
-                    path = "/var/lib/kubernetes/pki/kubelet-server.crt";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/kubernetes/pki/kubelet-server.crt";
+                    owner = "kubernetes";
+                    group = "kubernetes";
+                    mode = "0440";
                   };
                   k8s-kubelet-server-key = {
                     file = ./secrets/k8s-kubelet-server.key.age;
-                    path = "/var/lib/kubernetes/pki/kubelet-server.key";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/kubernetes/pki/kubelet-server.key";
+                    owner = "kubernetes";
+                    group = "kubernetes";
+                    mode = "0440";
                   };
 
                   # Kubeconfig files
                   k8s-admin-kubeconfig = {
                     file = ./secrets/k8s-admin.kubeconfig.age;
                     path = "/etc/kubernetes/admin.kubeconfig";
-                    owner = "root";
+                    owner = "kubernetes";
                     group = "kubernetes";
                     mode = "0440";
                   };
@@ -546,87 +546,87 @@
                   # Component certificates
                   k8s-controller-manager-crt = {
                     file = ./secrets/k8s-controller-manager.crt.age;
-                    path = "/var/lib/kubernetes/pki/controller-manager.crt";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/kubernetes/pki/controller-manager.crt";
+                    owner = "kubernetes";
+                    group = "kubernetes";
+                    mode = "0440";
                   };
                   k8s-controller-manager-key = {
                     file = ./secrets/k8s-controller-manager.key.age;
-                    path = "/var/lib/kubernetes/pki/controller-manager.key";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/kubernetes/pki/controller-manager.key";
+                    owner = "kubernetes";
+                    group = "kubernetes";
+                    mode = "0440";
                   };
                   k8s-scheduler-crt = {
                     file = ./secrets/k8s-scheduler.crt.age;
-                    path = "/var/lib/kubernetes/pki/scheduler.crt";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/kubernetes/pki/scheduler.crt";
+                    owner = "kubernetes";
+                    group = "kubernetes";
+                    mode = "0440";
                   };
                   k8s-scheduler-key = {
                     file = ./secrets/k8s-scheduler.key.age;
-                    path = "/var/lib/kubernetes/pki/scheduler.key";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/kubernetes/pki/scheduler.key";
+                    owner = "kubernetes";
+                    group = "kubernetes";
+                    mode = "0440";
                   };
                   k8s-proxy-crt = {
                     file = ./secrets/k8s-proxy.crt.age;
-                    path = "/var/lib/kubernetes/pki/proxy.crt";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/kubernetes/pki/proxy.crt";
+                    owner = "kubernetes";
+                    group = "kubernetes";
+                    mode = "0440";
                   };
                   k8s-proxy-key = {
                     file = ./secrets/k8s-proxy.key.age;
-                    path = "/var/lib/kubernetes/pki/proxy.key";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/kubernetes/pki/proxy.key";
+                    owner = "kubernetes";
+                    group = "kubernetes";
+                    mode = "0440";
                   };
                   k8s-kubelet-crt = {
                     file = ./secrets/k8s-kubelet.crt.age;
-                    path = "/var/lib/kubernetes/pki/kubelet.crt";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/kubernetes/pki/kubelet.crt";
+                    owner = "kubernetes";
+                    group = "kubernetes";
+                    mode = "0440";
                   };
                   k8s-kubelet-key = {
                     file = ./secrets/k8s-kubelet.key.age;
-                    path = "/var/lib/kubernetes/pki/kubelet.key";
-                    owner = "root";
-                    group = "root";
-                    mode = "0400";
+                    #path = "/var/lib/kubernetes/pki/kubelet.key";
+                    owner = "kubernetes";
+                    group = "kubernetes";
+                    mode = "0440";
                   };
 
                   # Component kubeconfig files
                   k8s-controller-manager-kubeconfig = {
                     file = ./secrets/k8s-controller-manager.kubeconfig.age;
                     path = "/etc/kubernetes/controller-manager.kubeconfig";
-                    owner = "root";
+                    owner = "kubernetes";
                     group = "kubernetes";
                     mode = "0440";
                   };
                   k8s-scheduler-kubeconfig = {
                     file = ./secrets/k8s-scheduler.kubeconfig.age;
                     path = "/etc/kubernetes/scheduler.kubeconfig";
-                    owner = "root";
+                    owner = "kubernetes";
                     group = "kubernetes";
                     mode = "0440";
                   };
                   k8s-proxy-kubeconfig = {
                     file = ./secrets/k8s-proxy.kubeconfig.age;
                     path = "/etc/kubernetes/proxy.kubeconfig";
-                    owner = "root";
+                    owner = "kubernetes";
                     group = "kubernetes";
                     mode = "0440";
                   };
                   k8s-kubelet-kubeconfig = {
                     file = ./secrets/k8s-kubelet.kubeconfig.age;
                     path = "/etc/kubernetes/kubelet.kubeconfig";
-                    owner = "root";
+                    owner = "kubernetes";
                     group = "kubernetes";
                     mode = "0440";
                   };
@@ -648,8 +648,9 @@
 
                 services = {
                   etcd = {
-                    advertiseClientUrls = [ "https://${fqdn}:2379" ];
-                    discovery = "https://${fqdn}:2380";
+                    advertiseClientUrls = [ "https://${ipAddress}:2379" ];
+                    # Remove the discovery line - it's for dynamic discovery, not needed for static cluster
+                    # discovery = "https://${fqdn}:2380";
                     enable = true;
                     initialAdvertisePeerUrls = [ "https://${ipAddress}:2380" ];
                     initialCluster = [ "${hostName}=https://${ipAddress}:2380" ];
@@ -664,12 +665,14 @@
                     ];
                     name = hostName;
                     openFirewall = true;
-                    certFile = "/var/lib/etcd/pki/server.crt";
-                    keyFile = "/var/lib/etcd/pki/server.key";
-                    trustedCaFile = "/var/lib/etcd/pki/ca.crt";
-                    peerCertFile = "/var/lib/etcd/pki/peer.crt";
-                    peerKeyFile = "/var/lib/etcd/pki/peer.key";
-                    peerTrustedCaFile = "/var/lib/etcd/pki/ca.crt";
+                    certFile = config.age.secrets.etcd-server-crt.path;
+                    keyFile = config.age.secrets.etcd-server-key.path;
+                    trustedCaFile = config.age.secrets.etcd-ca-crt.path;
+                    peerCertFile = config.age.secrets.etcd-peer-crt.path;
+                    peerKeyFile = config.age.secrets.etcd-peer-key.path;
+                    peerTrustedCaFile = config.age.secrets.etcd-ca-crt.path;
+                    clientCertAuth = true;
+                    peerClientCertAuth = true;
                   };
                   flannel = {
                     enable = true;
@@ -682,9 +685,9 @@
                     storageBackend = lib.mkForce "etcd";
                     etcd = {
                       endpoints = [ "https://${fqdn}:2379" ];
-                      caFile = "/var/lib/etcd/pki/ca.crt";
-                      certFile = "/var/lib/etcd/pki/flannel-client.crt";
-                      keyFile = "/var/lib/etcd/pki/flannel-client.key";
+                      caFile = config.age.secrets.etcd-ca-crt.path;
+                      certFile = config.age.secrets.etcd-flannel-client-crt.path;
+                      keyFile = config.age.secrets.etcd-flannel-client-key.path;
                     };
                   };
                   kubernetes = {
@@ -710,52 +713,50 @@
                       enable = true;
                       securePort = 6443;
                       serviceClusterIpRange = "10.43.0.0/16";
-                      # Use dedicated service account keys for signing/verification
-                      serviceAccountKeyFile = "/var/lib/kubernetes/pki/service-account.crt";
-                      serviceAccountSigningKeyFile = "/var/lib/kubernetes/pki/service-account.key";
-                      tlsCertFile = "/var/lib/kubernetes/pki/apiserver.crt";
-                      tlsKeyFile = "/var/lib/kubernetes/pki/apiserver.key";
+                      serviceAccountKeyFile = config.age.secrets.k8s-service-account-crt.path;
+                      serviceAccountSigningKeyFile = config.age.secrets.k8s-service-account-key.path;
+                      tlsCertFile = config.age.secrets.k8s-apiserver-crt.path;
+                      tlsKeyFile = config.age.secrets.k8s-apiserver-key.path;
                       etcd = {
                         servers = [ "https://${fqdn}:2379" ];
-                        caFile = "/var/lib/etcd/pki/ca.crt";
-                        certFile = "/var/lib/etcd/pki/apiserver-client.crt";
-                        keyFile = "/var/lib/etcd/pki/apiserver-client.key";
+                        caFile = config.age.secrets.etcd-ca-crt.path;
+                        certFile = config.age.secrets.etcd-apiserver-client-crt.path;
+                        keyFile = config.age.secrets.etcd-apiserver-client-key.path;
                       };
-                      clientCaFile = "/var/lib/kubernetes/pki/ca.crt";
+                      clientCaFile = config.age.secrets.k8s-ca-crt.path;
                     };
 
                     controllerManager = {
                       enable = true;
                       bindAddress = "0.0.0.0";
                       clusterCidr = "10.42.0.0/16";
-                      rootCaFile = "/var/lib/kubernetes/pki/ca.crt";
-                      serviceAccountKeyFile = "/var/lib/kubernetes/pki/service-account.crt";
+                      rootCaFile = config.age.secrets.k8s-ca-crt.path;
+                      serviceAccountKeyFile = config.age.secrets.k8s-service-account-crt.path;
                       kubeconfig = {
-                        caFile = "/var/lib/kubernetes/pki/ca.crt";
-                        certFile = "/var/lib/kubernetes/pki/controller-manager.crt";
-                        keyFile = "/var/lib/kubernetes/pki/controller-manager.key";
+                        caFile = config.age.secrets.k8s-ca-crt.path;
+                        certFile = config.age.secrets.k8s-controller-manager-crt.path;
+                        keyFile = config.age.secrets.k8s-controller-manager-key.path;
                         server = "https://${fqdn}:6443";
                       };
                     };
 
                     kubeconfig = {
-                      caFile = "/var/lib/kubernetes/pki/ca.crt";
-                      certFile = "/var/lib/kubernetes/pki/admin.crt";
-                      keyFile = "/var/lib/kubernetes/pki/admin.key";
+                      caFile = config.age.secrets.k8s-ca-crt.path;
+                      certFile = config.age.secrets.k8s-admin-crt.path;
+                      keyFile = config.age.secrets.k8s-admin-key.path;
                       server = "https://${fqdn}:6443";
                     };
 
-                    # Seed container images and kubelet config
                     kubelet = {
                       containerRuntimeEndpoint = "unix:///run/crio/crio.sock";
                       kubeconfig = {
-                        caFile = "/var/lib/kubernetes/pki/ca.crt";
-                        certFile = "/var/lib/kubernetes/pki/kubelet.crt";
-                        keyFile = "/var/lib/kubernetes/pki/kubelet.key";
+                        caFile = config.age.secrets.k8s-ca-crt.path;
+                        certFile = config.age.secrets.k8s-kubelet-crt.path;
+                        keyFile = config.age.secrets.k8s-kubelet-key.path;
                         server = "https://${fqdn}:6443";
                       };
-                      tlsCertFile = "/var/lib/kubernetes/pki/kubelet-server.crt";
-                      tlsKeyFile = "/var/lib/kubernetes/pki/kubelet-server.key";
+                      tlsCertFile = config.age.secrets.k8s-kubelet-server-crt.path;
+                      tlsKeyFile = config.age.secrets.k8s-kubelet-server-key.path;
                       cni = {
                         packages = with pkgs; [
                           cni-plugins
@@ -778,9 +779,9 @@
                     proxy = {
                       enable = true;
                       kubeconfig = {
-                        caFile = "/var/lib/kubernetes/pki/ca.crt";
-                        certFile = "/var/lib/kubernetes/pki/proxy.crt";
-                        keyFile = "/var/lib/kubernetes/pki/proxy.key";
+                        caFile = config.age.secrets.k8s-ca-crt.path;
+                        certFile = config.age.secrets.k8s-proxy-crt.path;
+                        keyFile = config.age.secrets.k8s-proxy-key.path;
                         server = "https://${fqdn}:6443";
                       };
                     };
@@ -796,9 +797,9 @@
                       address = "0.0.0.0";
                       port = 10251;
                       kubeconfig = {
-                        caFile = "/var/lib/kubernetes/pki/ca.crt";
-                        certFile = "/var/lib/kubernetes/pki/scheduler.crt";
-                        keyFile = "/var/lib/kubernetes/pki/scheduler.key";
+                        caFile = config.age.secrets.k8s-ca-crt.path;
+                        certFile = config.age.secrets.k8s-scheduler-crt.path;
+                        keyFile = config.age.secrets.k8s-scheduler-key.path;
                         server = "https://${fqdn}:6443";
                       };
                     };
@@ -860,9 +861,31 @@
                     };
                   };
 
-                  # Add services to kubernetes group for certificate access
-                  services.etcd.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
-                  services.flannel.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
+                  # Create .kube directory for kubernetes user with proper permissions
+                  tmpfiles.rules = [
+                    "d /var/lib/kubernetes/.kube 0750 kubernetes kubernetes -"
+                    "L+ /var/lib/kubernetes/.kube/config - - - - /etc/kubernetes/admin.kubeconfig"
+                    "L+ /var/lib/kubernetes/.kube/kuberc - - - - /etc/kubernetes/admin.kubeconfig"
+                  ];
+
+                  # Add services to kubernetes/etcd groups for certificate access
+                  services = {
+                    etcd.serviceConfig.SupplementaryGroups = [
+                      "kubernetes"
+                      "etcd"
+                    ];
+                    flannel.serviceConfig.SupplementaryGroups = [
+                      "kubernetes"
+                      "etcd"
+                    ];
+
+                    # Ensure Kubernetes services can read their certificates
+                    kube-apiserver.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
+                    kube-controller-manager.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
+                    kube-scheduler.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
+                    kube-proxy.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
+                    kubelet.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
+                  };
                 };
 
                 virtualisation = {
