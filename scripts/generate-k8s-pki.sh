@@ -6,7 +6,14 @@
 
 set -euo pipefail
 
-# Configuration
+# Load configuration from .env file if it exists
+if [ -f ".env" ]; then
+    set -a  # automatically export all variables
+    . ./.env
+    set +a
+fi
+
+# Configuration with defaults (can be overridden by .env or environment variables)
 CERT_DIR="${CERT_DIR:-./k8s-pki}"
 MASTER_IP="${MASTER_IP:-10.0.0.10}"
 CLUSTER_NAME="${CLUSTER_NAME:-kubernetes}"

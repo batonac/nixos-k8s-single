@@ -1,2 +1,19 @@
-kubeconfig*
-k8s-pki
+# Environment variables (contains plaintext config)
+.env
+
+# Certificate output (temporary plaintext certs)
+k8s-pki/
+
+# Build outputs
+result
+result-*
+
+# Nix
+.direnv/
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/

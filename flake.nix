@@ -434,14 +434,14 @@
                   etcd-ca-crt = {
                     file = ./secrets/etcd-ca.crt.age;
                     #path = "/var/lib/etcd/pki/ca.crt";
-                    owner = "root";
-                    group = "etcd";
+                    owner = "etcd";
+                    group = "kubernetes";
                     mode = "0440";
                   };
                   etcd-ca-key = {
                     file = ./secrets/etcd-ca.key.age;
                     #path = "/var/lib/etcd/pki/ca.key";
-                    owner = "root";
+                    owner = "etcd";
                     group = "etcd";
                     mode = "0440";
                   };
@@ -477,14 +477,14 @@
                     file = ./secrets/etcd-apiserver-client.crt.age;
                     #path = "/var/lib/etcd/pki/apiserver-client.crt";
                     owner = "etcd";
-                    group = "etcd";
+                    group = "kubernetes";
                     mode = "0440";
                   };
                   etcd-apiserver-client-key = {
                     file = ./secrets/etcd-apiserver-client.key.age;
                     #path = "/var/lib/etcd/pki/apiserver-client.key";
                     owner = "etcd";
-                    group = "etcd";
+                    group = "kubernetes";
                     mode = "0440";
                   };
                   etcd-flannel-client-crt = {
