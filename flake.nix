@@ -861,14 +861,12 @@
                     };
                   };
 
-                  # Create .kube directory for kubernetes user with proper permissions
                   tmpfiles.rules = [
                     "d /var/lib/kubernetes/.kube 0750 kubernetes kubernetes -"
                     "L+ /var/lib/kubernetes/.kube/config - - - - /etc/kubernetes/admin.kubeconfig"
                     "L+ /var/lib/kubernetes/.kube/kuberc - - - - /etc/kubernetes/admin.kubeconfig"
                   ];
 
-                  # Add services to kubernetes/etcd groups for certificate access
                   services = {
                     etcd.serviceConfig.SupplementaryGroups = [
                       "kubernetes"
@@ -879,18 +877,290 @@
                       "etcd"
                     ];
 
-                    # Ensure Kubernetes services can read their certificates
-                    kube-apiserver.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
+                    kube-apiserver = {
+                      serviceConfig.SupplementaryGroups = [ "kubernetes" ];
+                      requires = [ "etcd.service" ];
+                      after = [ "etcd.service" ];
+                    };
                     kube-controller-manager.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
                     kube-scheduler.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
                     kube-proxy.serviceConfig.SupplementaryGroups = [ "kubernetes" ];
 
-                    # Kubelet must wait for Flannel to write CNI config
                     kubelet = {
                       serviceConfig.SupplementaryGroups = [ "kubernetes" ];
                       requires = [ "flannel.service" ];
                       after = [ "flannel.service" ];
                     };
+
+                    # Bootstrap RBAC roles since easyCerts is disabled
+                    kubernetes-rbac-bootstrap =
+                      let
+                        # Define RBAC manifests as Nix data structures
+                        rbacManifests = [
+                          {
+                            apiVersion = "rbac.authorization.k8s.io/v1";
+                            kind = "ClusterRole";
+                            metadata.name = "system:kube-scheduler";
+                            rules = [
+                              {
+                                apiGroups = [ "" ];
+                                resources = [
+                                  "pods"
+                                  "nodes"
+                                  "namespaces"
+                                  "services"
+                                  "replicationcontrollers"
+                                  "persistentvolumes"
+                                  "persistentvolumeclaims"
+                                ];
+                                verbs = [
+                                  "get"
+                                  "list"
+                                  "watch"
+                                ];
+                              }
+                              {
+                                apiGroups = [ "apps" ];
+                                resources = [
+                                  "replicasets"
+                                  "statefulsets"
+                                ];
+                                verbs = [
+                                  "get"
+                                  "list"
+                                  "watch"
+                                ];
+                              }
+                              {
+                                apiGroups = [ "policy" ];
+                                resources = [ "poddisruptionbudgets" ];
+                                verbs = [
+                                  "get"
+                                  "list"
+                                  "watch"
+                                ];
+                              }
+                              {
+                                apiGroups = [ "storage.k8s.io" ];
+                                resources = [
+                                  "storageclasses"
+                                  "csinodes"
+                                  "csidrivers"
+                                  "csistoragecapacities"
+                                ];
+                                verbs = [
+                                  "get"
+                                  "list"
+                                  "watch"
+                                ];
+                              }
+                              {
+                                apiGroups = [ "" ];
+                                resources = [
+                                  "pods/binding"
+                                  "pods/status"
+                                ];
+                                verbs = [
+                                  "create"
+                                  "patch"
+                                  "update"
+                                ];
+                              }
+                              {
+                                apiGroups = [ "" ];
+                                resources = [ "events" ];
+                                verbs = [
+                                  "create"
+                                  "patch"
+                                  "update"
+                                ];
+                              }
+                              {
+                                apiGroups = [ "coordination.k8s.io" ];
+                                resources = [ "leases" ];
+                                verbs = [
+                                  "get"
+                                  "list"
+                                  "watch"
+                                  "create"
+                                  "update"
+                                  "patch"
+                                ];
+                              }
+                            ];
+                          }
+                          {
+                            apiVersion = "rbac.authorization.k8s.io/v1";
+                            kind = "ClusterRoleBinding";
+                            metadata.name = "system:kube-scheduler";
+                            roleRef = {
+                              apiGroup = "rbac.authorization.k8s.io";
+                              kind = "ClusterRole";
+                              name = "system:kube-scheduler";
+                            };
+                            subjects = [
+                              {
+                                kind = "User";
+                                name = "system:kube-scheduler";
+                              }
+                            ];
+                          }
+                          {
+                            apiVersion = "rbac.authorization.k8s.io/v1";
+                            kind = "ClusterRole";
+                            metadata.name = "system:kube-controller-manager";
+                            rules = [
+                              {
+                                apiGroups = [ "*" ];
+                                resources = [ "*" ];
+                                verbs = [ "*" ];
+                              }
+                            ];
+                          }
+                          {
+                            apiVersion = "rbac.authorization.k8s.io/v1";
+                            kind = "ClusterRoleBinding";
+                            metadata.name = "system:kube-controller-manager";
+                            roleRef = {
+                              apiGroup = "rbac.authorization.k8s.io";
+                              kind = "ClusterRole";
+                              name = "system:kube-controller-manager";
+                            };
+                            subjects = [
+                              {
+                                kind = "User";
+                                name = "system:kube-controller-manager";
+                              }
+                            ];
+                          }
+                          {
+                            apiVersion = "rbac.authorization.k8s.io/v1";
+                            kind = "ClusterRole";
+                            metadata.name = "system:kube-proxy";
+                            rules = [
+                              {
+                                apiGroups = [ "" ];
+                                resources = [
+                                  "nodes"
+                                  "endpoints"
+                                  "services"
+                                  "events"
+                                ];
+                                verbs = [
+                                  "get"
+                                  "list"
+                                  "watch"
+                                  "create"
+                                  "patch"
+                                  "update"
+                                ];
+                              }
+                            ];
+                          }
+                          {
+                            apiVersion = "rbac.authorization.k8s.io/v1";
+                            kind = "ClusterRoleBinding";
+                            metadata.name = "system:kube-proxy";
+                            roleRef = {
+                              apiGroup = "rbac.authorization.k8s.io";
+                              kind = "ClusterRole";
+                              name = "system:kube-proxy";
+                            };
+                            subjects = [
+                              {
+                                kind = "User";
+                                name = "system:kube-proxy";
+                              }
+                            ];
+                          }
+                          {
+                            apiVersion = "rbac.authorization.k8s.io/v1";
+                            kind = "ClusterRole";
+                            metadata.name = "system:node";
+                            rules = [
+                              {
+                                apiGroups = [ "" ];
+                                resources = [
+                                  "nodes"
+                                  "nodes/status"
+                                  "pods"
+                                  "pods/status"
+                                  "events"
+                                ];
+                                verbs = [
+                                  "get"
+                                  "list"
+                                  "watch"
+                                  "create"
+                                  "patch"
+                                  "update"
+                                ];
+                              }
+                              {
+                                apiGroups = [ "coordination.k8s.io" ];
+                                resources = [ "leases" ];
+                                verbs = [
+                                  "get"
+                                  "list"
+                                  "watch"
+                                  "create"
+                                  "update"
+                                  "patch"
+                                ];
+                              }
+                            ];
+                          }
+                          {
+                            apiVersion = "rbac.authorization.k8s.io/v1";
+                            kind = "ClusterRoleBinding";
+                            metadata.name = "system:node";
+                            roleRef = {
+                              apiGroup = "rbac.authorization.k8s.io";
+                              kind = "ClusterRole";
+                              name = "system:node";
+                            };
+                            subjects = [
+                              {
+                                kind = "Group";
+                                name = "system:nodes";
+                              }
+                            ];
+                          }
+                        ];
+
+                        # Convert to YAML and write to file
+                        rbacManifestsYaml = pkgs.writeText "rbac-bootstrap.yaml" (
+                          lib.concatMapStringsSep "---\n" (manifest: builtins.toJSON manifest) rbacManifests
+                        );
+                      in
+                      {
+                        description = "Bootstrap Kubernetes RBAC Roles";
+                        after = [ "kube-apiserver.service" ];
+                        wants = [ "kube-apiserver.service" ];
+                        wantedBy = [ "kubernetes.target" ];
+
+                        environment.KUBECONFIG = config.age.secrets.k8s-admin-kubeconfig.path;
+
+                        serviceConfig = {
+                          Type = "oneshot";
+                          RemainAfterExit = true;
+                          Restart = "on-failure";
+                          RestartSec = "30s";
+                          User = "kubernetes";
+                          Group = "kubernetes";
+                        };
+
+                        script = ''
+                          until ${pkgs.curl}/bin/curl -k -s https://localhost:6443/healthz > /dev/null 2>&1; do
+                            echo "Waiting for API server..."
+                            sleep 2
+                          done
+
+                          echo "Applying default RBAC roles from Nix-generated manifest..."
+                          ${pkgs.kubectl}/bin/kubectl apply -f ${rbacManifestsYaml}
+                          echo "RBAC bootstrap complete"
+                        '';
+                      };
                   };
                 };
 
