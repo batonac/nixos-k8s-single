@@ -21,6 +21,7 @@ SERVICE_CIDR="${SERVICE_CIDR:-10.43.0.0/16}"
 CLUSTER_DNS="${CLUSTER_DNS:-10.43.0.10}"
 KEY_PATH="${KEY_PATH:-/home/batonac/.ssh/id_agenix}"
 FQDN="${FQDN:-k3s-dev.batonac.com}"
+HOSTNAME="${HOSTNAME:-k3s-dev}"  # Extract hostname from FQDN if not provided
 TEMP_CERTS_DIR=$(mktemp -d)
 
 
@@ -443,13 +444,13 @@ main() {
     generate_service_account_keys
     
     # Generate kubelet server certificate
-    generate_kubelet_server_cert
+    generate_kubelet_server_cert "$HOSTNAME" "$MASTER_IP"
     
     # Generate client certificates for components
     generate_client_cert "controller-manager" "system:kube-controller-manager" "Kubernetes" "k8s-controller-manager"
     generate_client_cert "scheduler" "system:kube-scheduler" "Kubernetes" "k8s-scheduler"
     generate_client_cert "proxy" "system:kube-proxy" "Kubernetes" "k8s-proxy"
-    generate_client_cert "kubelet" "system:node:$(hostname)" "system:nodes" "k8s-kubelet"
+    generate_client_cert "kubelet" "system:node:$HOSTNAME" "system:nodes" "k8s-kubelet"
     
     # Generate kubeconfig files
     generate_kubeconfig "admin" \
