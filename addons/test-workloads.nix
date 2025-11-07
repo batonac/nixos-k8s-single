@@ -1,8 +1,10 @@
 { pkgs, lib, ... }:
 {
+  bootstrapAddons = {};
+  
   # Regular addons
   addons = {
-    alpine-test = {
+    alpine-test-pod = {
       apiVersion = "v1";
       kind = "Pod";
       metadata = {
@@ -14,27 +16,22 @@
         };
       };
       spec = {
-        containers = [
-          {
-            name = "alpine";
-            image = "alpine:latest";
-            command = [
-              "sleep"
-              "3600"
-            ];
-            imagePullPolicy = "IfNotPresent";
-            resources = {
-              requests = {
-                cpu = "100m";
-                memory = "64Mi";
-              };
+        containers = [{
+          name = "alpine";
+          image = "alpine:latest";
+          command = [ "sleep" "3600" ];
+          imagePullPolicy = "IfNotPresent";
+          resources = {
+            requests = {
+              cpu = "100m";
+              memory = "64Mi";
             };
-          }
-        ];
+          };
+        }];
         restartPolicy = "Always";
       };
     };
-
+    
     nginx-deployment = {
       apiVersion = "apps/v1";
       kind = "Deployment";
@@ -47,36 +44,24 @@
         };
       };
       spec = {
-        replicas = 1;
-        selector = {
-          matchLabels = {
-            app = "nginx";
-          };
-        };
+        replicas = 2;
+        selector.matchLabels.app = "nginx";
         template = {
-          metadata = {
-            labels = {
-              app = "nginx";
-            };
-          };
+          metadata.labels.app = "nginx";
           spec = {
-            containers = [
-              {
-                name = "nginx";
-                image = "nginx:1.25";
-                imagePullPolicy = "IfNotPresent";
-                ports = [
-                  {
-                    containerPort = 80;
-                  }
-                ];
-              }
-            ];
+            containers = [{
+              name = "nginx";
+              image = "nginx:1.25";
+              imagePullPolicy = "IfNotPresent";
+              ports = [{
+                containerPort = 80;
+              }];
+            }];
           };
         };
       };
     };
-
+    
     nginx-service = {
       apiVersion = "v1";
       kind = "Service";
@@ -85,22 +70,19 @@
         namespace = "default";
         labels = {
           "addonmanager.kubernetes.io/mode" = "Reconcile";
-          app = "nginx";
         };
       };
       spec = {
-        selector = {
-          app = "nginx";
-        };
-        ports = [
-          {
-            name = "http";
-            port = 80;
-            targetPort = 80;
-          }
-        ];
+        selector.app = "nginx";
+        ports = [{
+          name = "http";
+          port = 80;
+          targetPort = 80;
+        }];
         type = "ClusterIP";
       };
     };
   };
+  
+  seedImages = [];
 }

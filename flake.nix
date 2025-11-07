@@ -181,6 +181,7 @@
             vscode-server.nixosModules.default
             disko.nixosModules.disko
             agenix.nixosModules.default
+            ./addons/default.nix
             (
               {
                 config,
@@ -222,6 +223,24 @@
                       enable = true;
                       root = "gpt-auto";
                       tpm2.enable = true;
+                      network = {
+                        enable = true;
+                        networks."10-wan" = {
+                          matchConfig.Name = "ens18";
+                          address = [
+                            # configure addresses including subnet mask
+                            "${ipAddress}/24"
+                          ];
+                          routes = [
+                            # create default routes for IPv4
+                            { Gateway = "10.48.4.1"; }
+                          ];
+                          networkConfig = {
+                            IPv6AcceptRA = true;
+                          };
+                          linkConfig.RequiredForOnline = "routable";
+                        };
+                      };
                     };
                     verbose = false;
                   };
@@ -630,6 +649,8 @@
                     group = "kubernetes";
                     mode = "0440";
                   };
+
+                  # No addon-manager certificates needed!
                 };
 
                 environment = {
@@ -648,7 +669,10 @@
 
                 services = {
                   etcd = {
-                    advertiseClientUrls = [ "https://${ipAddress}:2379" ];
+                    advertiseClientUrls = [
+                      "https://${fqdn}:2379"
+                      "https://${ipAddress}:2379"
+                    ];
                     # Remove the discovery line - it's for dynamic discovery, not needed for static cluster
                     # discovery = "https://${fqdn}:2380";
                     enable = true;
@@ -656,8 +680,8 @@
                     initialCluster = [ "${hostName}=https://${ipAddress}:2380" ];
                     initialClusterState = "new";
                     listenClientUrls = [
-                      "https://127.0.0.1:2379"
                       "https://${ipAddress}:2379"
+                      "https://127.0.0.1:2379"
                     ];
                     listenPeerUrls = [
                       "https://127.0.0.1:2380"
@@ -692,8 +716,15 @@
                   };
                   kubernetes = {
 
+                    # Enable addon manager to handle RBAC bootstrap
+                    addonManager = {
+                      enable = true;
+                      # bootstrapAddons are now managed by ./addons/default.nix
+                      # addons are also managed by ./addons/default.nix
+                    };
+
                     apiserverAddress = "https://${fqdn}:6443";
-                    caFile = "/var/lib/acme/${fqdn}/chain.pem";
+                    caFile = config.age.secrets.k8s-ca-crt.path; # changed from "/var/lib/acme/${fqdn}/chain.pem";
                     clusterCidr = "10.42.0.0/16";
                     easyCerts = false;
                     masterAddress = fqdn;
@@ -718,7 +749,7 @@
                       tlsCertFile = config.age.secrets.k8s-apiserver-crt.path;
                       tlsKeyFile = config.age.secrets.k8s-apiserver-key.path;
                       etcd = {
-                        servers = [ "https://${fqdn}:2379" ];
+                        servers = [ "https://${ipAddress}:2379" ];
                         caFile = config.age.secrets.etcd-ca-crt.path;
                         certFile = config.age.secrets.etcd-apiserver-client-crt.path;
                         keyFile = config.age.secrets.etcd-apiserver-client-key.path;
@@ -731,13 +762,18 @@
                       bindAddress = "0.0.0.0";
                       clusterCidr = "10.42.0.0/16";
                       rootCaFile = config.age.secrets.k8s-ca-crt.path;
-                      serviceAccountKeyFile = config.age.secrets.k8s-service-account-key.path; # ✅ Use PRIVATE key for signing
+                      serviceAccountKeyFile = config.age.secrets.k8s-service-account-key.path;
                       kubeconfig = {
                         caFile = config.age.secrets.k8s-ca-crt.path;
                         certFile = config.age.secrets.k8s-controller-manager-crt.path;
                         keyFile = config.age.secrets.k8s-controller-manager-key.path;
                         server = "https://${fqdn}:6443";
                       };
+                      # Add extraOpts to suppress warnings about authentication/authorization
+                      extraOpts = ''
+                        --authentication-kubeconfig=/etc/kubernetes/controller-manager.kubeconfig
+                        --authorization-kubeconfig=/etc/kubernetes/controller-manager.kubeconfig
+                      '';
                     };
 
                     kubeconfig = {
@@ -749,6 +785,10 @@
 
                     kubelet = {
                       containerRuntimeEndpoint = "unix:///run/crio/crio.sock";
+                      enable = true;
+                      hostname = hostName;
+                      clusterDns = [ "10.43.0.254" ];
+                      # Don't set node labels - will be applied manually or via addon if needed
                       kubeconfig = {
                         caFile = config.age.secrets.k8s-ca-crt.path;
                         certFile = config.age.secrets.k8s-kubelet-crt.path;
@@ -802,6 +842,11 @@
                         keyFile = config.age.secrets.k8s-scheduler-key.path;
                         server = "https://${fqdn}:6443";
                       };
+                      # Add extraOpts to suppress warnings
+                      extraOpts = ''
+                        --authentication-kubeconfig=/etc/kubernetes/scheduler.kubeconfig
+                        --authorization-kubeconfig=/etc/kubernetes/scheduler.kubeconfig
+                      '';
                     };
 
                   };
@@ -892,276 +937,30 @@
                       after = [ "flannel.service" ];
                     };
 
-                    # Bootstrap RBAC roles since easyCerts is disabled
-                    kubernetes-rbac-bootstrap =
-                      let
-                        # Define RBAC manifests as Nix data structures
-                        rbacManifests = [
-                          {
-                            apiVersion = "rbac.authorization.k8s.io/v1";
-                            kind = "ClusterRole";
-                            metadata.name = "system:kube-scheduler";
-                            rules = [
-                              {
-                                apiGroups = [ "" ];
-                                resources = [
-                                  "pods"
-                                  "nodes"
-                                  "namespaces"
-                                  "services"
-                                  "replicationcontrollers"
-                                  "persistentvolumes"
-                                  "persistentvolumeclaims"
-                                ];
-                                verbs = [
-                                  "get"
-                                  "list"
-                                  "watch"
-                                ];
-                              }
-                              {
-                                apiGroups = [ "apps" ];
-                                resources = [
-                                  "replicasets"
-                                  "statefulsets"
-                                ];
-                                verbs = [
-                                  "get"
-                                  "list"
-                                  "watch"
-                                ];
-                              }
-                              {
-                                apiGroups = [ "policy" ];
-                                resources = [ "poddisruptionbudgets" ];
-                                verbs = [
-                                  "get"
-                                  "list"
-                                  "watch"
-                                ];
-                              }
-                              {
-                                apiGroups = [ "storage.k8s.io" ];
-                                resources = [
-                                  "storageclasses"
-                                  "csinodes"
-                                  "csidrivers"
-                                  "csistoragecapacities"
-                                ];
-                                verbs = [
-                                  "get"
-                                  "list"
-                                  "watch"
-                                ];
-                              }
-                              {
-                                apiGroups = [ "" ];
-                                resources = [
-                                  "pods/binding"
-                                  "pods/status"
-                                ];
-                                verbs = [
-                                  "create"
-                                  "patch"
-                                  "update"
-                                ];
-                              }
-                              {
-                                apiGroups = [ "" ];
-                                resources = [ "events" ];
-                                verbs = [
-                                  "create"
-                                  "patch"
-                                  "update"
-                                ];
-                              }
-                              {
-                                apiGroups = [ "coordination.k8s.io" ];
-                                resources = [ "leases" ];
-                                verbs = [
-                                  "get"
-                                  "list"
-                                  "watch"
-                                  "create"
-                                  "update"
-                                  "patch"
-                                ];
-                              }
-                            ];
-                          }
-                          {
-                            apiVersion = "rbac.authorization.k8s.io/v1";
-                            kind = "ClusterRoleBinding";
-                            metadata.name = "system:kube-scheduler";
-                            roleRef = {
-                              apiGroup = "rbac.authorization.k8s.io";
-                              kind = "ClusterRole";
-                              name = "system:kube-scheduler";
-                            };
-                            subjects = [
-                              {
-                                kind = "User";
-                                name = "system:kube-scheduler";
-                              }
-                            ];
-                          }
-                          {
-                            apiVersion = "rbac.authorization.k8s.io/v1";
-                            kind = "ClusterRole";
-                            metadata.name = "system:kube-controller-manager";
-                            rules = [
-                              {
-                                apiGroups = [ "*" ];
-                                resources = [ "*" ];
-                                verbs = [ "*" ];
-                              }
-                            ];
-                          }
-                          {
-                            apiVersion = "rbac.authorization.k8s.io/v1";
-                            kind = "ClusterRoleBinding";
-                            metadata.name = "system:kube-controller-manager";
-                            roleRef = {
-                              apiGroup = "rbac.authorization.k8s.io";
-                              kind = "ClusterRole";
-                              name = "system:kube-controller-manager";
-                            };
-                            subjects = [
-                              {
-                                kind = "User";
-                                name = "system:kube-controller-manager";
-                              }
-                            ];
-                          }
-                          {
-                            apiVersion = "rbac.authorization.k8s.io/v1";
-                            kind = "ClusterRole";
-                            metadata.name = "system:kube-proxy";
-                            rules = [
-                              {
-                                apiGroups = [ "" ];
-                                resources = [
-                                  "nodes"
-                                  "endpoints"
-                                  "services"
-                                  "events"
-                                ];
-                                verbs = [
-                                  "get"
-                                  "list"
-                                  "watch"
-                                  "create"
-                                  "patch"
-                                  "update"
-                                ];
-                              }
-                            ];
-                          }
-                          {
-                            apiVersion = "rbac.authorization.k8s.io/v1";
-                            kind = "ClusterRoleBinding";
-                            metadata.name = "system:kube-proxy";
-                            roleRef = {
-                              apiGroup = "rbac.authorization.k8s.io";
-                              kind = "ClusterRole";
-                              name = "system:kube-proxy";
-                            };
-                            subjects = [
-                              {
-                                kind = "User";
-                                name = "system:kube-proxy";
-                              }
-                            ];
-                          }
-                          {
-                            apiVersion = "rbac.authorization.k8s.io/v1";
-                            kind = "ClusterRole";
-                            metadata.name = "system:node";
-                            rules = [
-                              {
-                                apiGroups = [ "" ];
-                                resources = [
-                                  "nodes"
-                                  "nodes/status"
-                                  "pods"
-                                  "pods/status"
-                                  "events"
-                                ];
-                                verbs = [
-                                  "get"
-                                  "list"
-                                  "watch"
-                                  "create"
-                                  "patch"
-                                  "update"
-                                ];
-                              }
-                              {
-                                apiGroups = [ "coordination.k8s.io" ];
-                                resources = [ "leases" ];
-                                verbs = [
-                                  "get"
-                                  "list"
-                                  "watch"
-                                  "create"
-                                  "update"
-                                  "patch"
-                                ];
-                              }
-                            ];
-                          }
-                          {
-                            apiVersion = "rbac.authorization.k8s.io/v1";
-                            kind = "ClusterRoleBinding";
-                            metadata.name = "system:node";
-                            roleRef = {
-                              apiGroup = "rbac.authorization.k8s.io";
-                              kind = "ClusterRole";
-                              name = "system:node";
-                            };
-                            subjects = [
-                              {
-                                kind = "Group";
-                                name = "system:nodes";
-                              }
-                            ];
-                          }
-                        ];
+                    # Configure addon-manager to use admin kubeconfig
+                    kube-addon-manager = {
+                      environment.KUBECONFIG = config.age.secrets.k8s-admin-kubeconfig.path;
+                      serviceConfig.SupplementaryGroups = [ "kubernetes" ];
 
-                        # Convert to YAML and write to file
-                        rbacManifestsYaml = pkgs.writeText "rbac-bootstrap.yaml" (
-                          lib.concatMapStringsSep "---\n" (manifest: builtins.toJSON manifest) rbacManifests
+                      # The preStart needs cluster-admin rights for bootstrapAddons
+                      serviceConfig.PermissionsStartOnly = true;
+
+                      preStart =
+                        with pkgs;
+                        lib.mkIf (config.services.kubernetes.addonManager.bootstrapAddons != { }) (
+                          let
+                            files = lib.mapAttrsToList (
+                              n: v: pkgs.writeText "${n}.json" (builtins.toJSON v)
+                            ) config.services.kubernetes.addonManager.bootstrapAddons;
+                          in
+                          ''
+                            export KUBECONFIG=${config.age.secrets.k8s-admin-kubeconfig.path}
+                            ${pkgs.kubernetes}/bin/kubectl apply -f ${lib.concatStringsSep " \\\n -f " files}
+                          ''
                         );
-                      in
-                      {
-                        description = "Bootstrap Kubernetes RBAC Roles";
-                        after = [ "kube-apiserver.service" ];
-                        wants = [ "kube-apiserver.service" ];
-                        wantedBy = [ "kubernetes.target" ];
-
-                        environment.KUBECONFIG = config.age.secrets.k8s-admin-kubeconfig.path;
-
-                        serviceConfig = {
-                          Type = "oneshot";
-                          RemainAfterExit = true;
-                          Restart = "on-failure";
-                          RestartSec = "30s";
-                          User = "kubernetes";
-                          Group = "kubernetes";
-                        };
-
-                        script = ''
-                          until ${pkgs.curl}/bin/curl -k -s https://localhost:6443/healthz > /dev/null 2>&1; do
-                            echo "Waiting for API server..."
-                            sleep 2
-                          done
-
-                          echo "Applying default RBAC roles from Nix-generated manifest..."
-                          ${pkgs.kubectl}/bin/kubectl apply -f ${rbacManifestsYaml}
-                          echo "RBAC bootstrap complete"
-                        '';
-                      };
+                    };
                   };
+
                 };
 
                 virtualisation = {

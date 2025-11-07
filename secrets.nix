@@ -53,4 +53,6 @@ in
   "secrets/k8s-scheduler.kubeconfig.age".publicKeys = [ userKey systemKey ];
   "secrets/k8s-proxy.kubeconfig.age".publicKeys = [ userKey systemKey ];
   "secrets/k8s-kubelet.kubeconfig.age".publicKeys = [ userKey systemKey ];
+  
+  # No addon-manager secrets needed!
 }

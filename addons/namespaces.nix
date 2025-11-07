@@ -1,26 +1,44 @@
 { pkgs, lib, ... }:
-let
-  namespaces = [
-    "cert-manager"
-    "juicefs-csi"
-    "monitoring"
-  ];
-in
 {
-  # Regular addons
-  addons = lib.listToAttrs (
-    map (namespace: {
-      name = "${namespace}-namespace";
-      value = {
-        apiVersion = "v1";
-        kind = "Namespace";
-        metadata = {
-          name = namespace;
-          labels = {
-            "addonmanager.kubernetes.io/mode" = "Reconcile";
-          };
+  bootstrapAddons = {};
+  
+  addons = {
+    namespace-monitoring = {
+      apiVersion = "v1";
+      kind = "Namespace";
+      metadata = {
+        name = "monitoring";
+        labels = {
+          "addonmanager.kubernetes.io/mode" = "Reconcile";
+          name = "monitoring";
         };
       };
-    }) namespaces
-  );
+    };
+    
+    namespace-cert-manager = {
+      apiVersion = "v1";
+      kind = "Namespace";
+      metadata = {
+        name = "cert-manager";
+        labels = {
+          "addonmanager.kubernetes.io/mode" = "Reconcile";
+          name = "cert-manager";
+        };
+      };
+    };
+    
+    namespace-juicefs-csi = {
+      apiVersion = "v1";
+      kind = "Namespace";
+      metadata = {
+        name = "juicefs-csi";
+        labels = {
+          "addonmanager.kubernetes.io/mode" = "Reconcile";
+          name = "juicefs-csi";
+        };
+      };
+    };
+  };
+  
+  seedImages = [];
 }

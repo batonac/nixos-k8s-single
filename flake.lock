@@ -52,11 +52,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1761899396,
-        "narHash": "sha256-XOpKBp6HLzzMCbzW50TEuXN35zN5WGQREC7n34DcNMM=",
+        "lastModified": 1762276996,
+        "narHash": "sha256-TtcPgPmp2f0FAnc+DMEw4ardEgv1SGNR3/WFGH0N19M=",
         "owner": "nix-community",
         "repo": "disko",
-        "rev": "6f4cf5abbe318e4cd1e879506f6eeafd83f7b998",
+        "rev": "af087d076d3860760b3323f6b583f4d828c1ac17",
         "type": "github"
       },
       "original": {
@@ -123,11 +123,11 @@
     "juicefs-csi-driver": {
       "flake": false,
       "locked": {
-        "lastModified": 1761790491,
-        "narHash": "sha256-SolshrksEqO9qsUEL6xBgQ2HI6ZdTRUTGgcHjoSpBgI=",
+        "lastModified": 1762394766,
+        "narHash": "sha256-jmg1J+eHykUGadiZTXHprZf6XNgBq9cQVCHcZDvPXDY=",
         "owner": "juicedata",
         "repo": "juicefs-csi-driver",
-        "rev": "5438bd51fe2c3694b93d3d9ec54fb0a50c1e4dc8",
+        "rev": "0462c7853f2f23e628194d0d5c7725b3a148547c",
         "type": "github"
       },
       "original": {
@@ -161,11 +161,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1762111121,
-        "narHash": "sha256-4vhDuZ7OZaZmKKrnDpxLZZpGIJvAeMtK6FKLJYUtAdw=",
+        "lastModified": 1762363567,
+        "narHash": "sha256-YRqMDEtSMbitIMj+JLpheSz0pwEr0Rmy5mC7myl17xs=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "b3d51a0365f6695e7dd5cdf3e180604530ed33b4",
+        "rev": "ae814fd3904b621d8ab97418f1d0f2eb0d3716f4",
         "type": "github"
       },
       "original": {

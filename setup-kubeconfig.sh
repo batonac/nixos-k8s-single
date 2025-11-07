@@ -22,7 +22,7 @@ mkdir -p ~/.kube
 # Decrypt the admin kubeconfig
 echo "📋 Decrypting admin kubeconfig..."
 cd "$SCRIPT_DIR"
-agenix -d secrets/k8s-admin.kubeconfig.age > ~/.kube/config
+agenix -d secrets/k8s-admin.kubeconfig.age -i ~/.ssh/id_agenix > ~/.kube/config
 
 # Set proper permissions
 chmod 600 ~/.kube/config
