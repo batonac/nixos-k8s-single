@@ -25,6 +25,10 @@
       url = "github:juicedata/juicefs-csi-driver";
       flake = false;
     };
+    flox = {
+      url = "github:flox/flox/latest";
+      # inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # # Your private secrets repo - this is fine!
     # secrets = {
@@ -34,7 +38,7 @@
   };
 
   outputs =
-    {
+    inputs@{
       self,
       nixpkgs,
       disko,
@@ -58,7 +62,8 @@
       ipAddress = "10.48.4.181";
       stateVersion = "25.11"; # NixOS state version
       sshKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOv4SpIhHJqtRaYBRQOin4PTDUxRwo7ozoQHTUFjMGLW avunu@AvunuCentral"; # Replace with your SSH public key
-      extraPackages = with nixpkgs.legacyPackages.x86_64-linux; [
+      system = "x86_64-linux";
+      extraPackages = with nixpkgs.legacyPackages.${system}; [
         coreutils
         curl
         kubectl
@@ -72,8 +77,8 @@
     in
     {
       # Kubenix package for generating Kubernetes manifests
-      packages.x86_64-linux.kubenix-manifests =
-        (kubenix.evalModules.x86_64-linux {
+      packages.${system}.kubenix-manifests =
+        (kubenix.evalModules.${system} {
           module =
             { kubenix, ... }:
             {
@@ -162,9 +167,9 @@
       };
 
       # Development shell with agenix-rekey
-      devShells.x86_64-linux.default = nixpkgs.legacyPackages.x86_64-linux.mkShell {
-        buildInputs = with nixpkgs.legacyPackages.x86_64-linux; [
-          agenix-rekey.packages.x86_64-linux.default
+      devShells.${system}.default = nixpkgs.legacyPackages.${system}.mkShell {
+        buildInputs = with nixpkgs.legacyPackages.${system}; [
+          agenix-rekey.packages.${system}.default
           age
           age-plugin-yubikey
           bitwarden-cli
@@ -192,7 +197,7 @@
 
       nixosConfigurations = {
         "${hostName}" = nixpkgs.lib.nixosSystem {
-          system = "x86_64-linux";
+          system = "${system}";
           modules = [
             { nix.nixPath = [ "nixpkgs=${self.inputs.nixpkgs}" ]; }
             vscode-server.nixosModules.default
@@ -418,14 +423,14 @@
                 age.rekey = {
                   # Host SSH public key
                   hostPubkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEiNCbMBi8L9Kq1/8H+vWSSH6Vm9saENQcWa6lTCIIj8"; # REPLACE AFTER FIRST BOOT
-                  
+
                   # Your YubiKey identity
                   masterIdentities = [ ./secrets/yubikey-identity.pub ];
-                  
+
                   # Use local storage mode (simpler, more flexible)
                   storageMode = "local";
                   localStorageDir = ./. + "/secrets/rekeyed/${config.networking.hostName}";
-                  
+
                   # Optional: Directory for generated secrets
                   generatedSecretsDir = ./secrets/generated;
                 };
@@ -704,9 +709,10 @@
                     KUBECONFIG = "/etc/kubernetes/admin.kubeconfig";
                   };
 
-                  systemPackages = extraPackages ++ [ 
-                    agenix.packages.x86_64-linux.default
-                    agenix-rekey.packages.x86_64-linux.default
+                  systemPackages = extraPackages ++ [
+                    inputs.agenix.packages.${system}.default
+                    inputs.agenix-rekey.packages.${system}.default
+                    inputs.flox.packages.${system}.default
                   ];
                 };
 
