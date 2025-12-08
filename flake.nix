@@ -17,10 +17,20 @@
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    agenix-rekey = {
+      url = "github:oddlama/agenix-rekey";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     juicefs-csi-driver = {
       url = "github:juicedata/juicefs-csi-driver";
       flake = false;
     };
+
+    # # Your private secrets repo - this is fine!
+    # secrets = {
+    #   url = "git+ssh://git@github.com/yourusername/nixos-k8s-secrets";
+    #   flake = false;  # Not a flake itself, just a source repo
+    # };
   };
 
   outputs =
@@ -31,6 +41,8 @@
       vscode-server,
       kubenix,
       agenix,
+      agenix-rekey,
+      # secrets,
       ...
     }:
     let
@@ -143,32 +155,37 @@
             };
         }).config.kubernetes.result;
 
-      # Development shell with secret management tools
+      # Expose agenix-rekey configuration
+      agenix-rekey = agenix-rekey.configure {
+        userFlake = self;
+        nixosConfigurations = self.nixosConfigurations;
+      };
+
+      # Development shell with agenix-rekey
       devShells.x86_64-linux.default = nixpkgs.legacyPackages.x86_64-linux.mkShell {
         buildInputs = with nixpkgs.legacyPackages.x86_64-linux; [
-          agenix.packages.x86_64-linux.default
-          ssh-to-age
+          agenix-rekey.packages.x86_64-linux.default
           age
+          age-plugin-yubikey
+          bitwarden-cli
+          nixfmt-rfc-style
           openssh
           openssl
-          nixfmt-rfc-style
+          ssh-to-age
         ];
 
         shellHook = ''
-          echo "🔐 NixOS K8s Secrets Management Shell"
+          echo "🔐 NixOS K8s Secrets Management Shell (with agenix-rekey)"
           echo ""
           echo "Available tools:"
-          echo "  agenix       - Encrypt/decrypt secrets"
-          echo "  ssh-to-age   - Convert SSH keys to age format"
+          echo "  agenix       - Manage and rekey secrets"
           echo "  age          - Age encryption tool"
           echo ""
-          echo "Scripts:"
-          echo "  ./setup-secrets.sh - Create encrypted secrets"
-          echo "  ./get-age-key.sh   - Get system age key"
-          echo ""
-          echo "Usage:"
-          echo "  1. Run: ./setup-secrets.sh"
-          echo "  2. Then: ./update.sh"
+          echo "YubiKey workflow:"
+          echo "  1. Generate YubiKey identity: age-plugin-yubikey --generate"
+          echo "  2. Store identity in ./secrets/yubikey-identity.pub"
+          echo "  3. Edit secrets: agenix edit secrets/my-secret.age"
+          echo "  4. Rekey for hosts: agenix rekey -a"
           echo ""
         '';
       };
@@ -181,6 +198,7 @@
             vscode-server.nixosModules.default
             disko.nixosModules.disko
             agenix.nixosModules.default
+            agenix-rekey.nixosModules.default
             ./addons/default.nix
             (
               {
@@ -208,10 +226,15 @@
                       enable = true;
                       ssh = {
                         enable = true;
-                        ignoreEmptyHostKeys = true;
                         port = 22;
                         authorizedKeys = [ sshKey ];
+                        # Use the initrd key from the secrets submodule
+                        hostKeys = [ "/secrets/initrd/ssh_host_ed25519_key" ];
                       };
+                    };
+                    # Copy the SSH host key from flake input into initrd
+                    secrets = {
+                      "/secrets/initrd/ssh_host_ed25519_key" = "/etc/ssh/ssh_host_ed25519_key";
                     };
                     supportedFilesystems = {
                       btrfs = true;
@@ -391,166 +414,183 @@
                   };
                 };
 
+                # Configure agenix-rekey
+                age.rekey = {
+                  # Host SSH public key
+                  hostPubkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEiNCbMBi8L9Kq1/8H+vWSSH6Vm9saENQcWa6lTCIIj8"; # REPLACE AFTER FIRST BOOT
+                  
+                  # Your YubiKey identity
+                  masterIdentities = [ ./secrets/yubikey-identity.pub ];
+                  
+                  # Use local storage mode (simpler, more flexible)
+                  storageMode = "local";
+                  localStorageDir = ./. + "/secrets/rekeyed/${config.networking.hostName}";
+                  
+                  # Optional: Directory for generated secrets
+                  generatedSecretsDir = ./secrets/generated;
+                };
+
                 age.secrets = {
+                  # Cloudflare secrets
                   cloudflare-email = {
-                    file = ./secrets/cloudflare-email.age;
+                    rekeyFile = ./secrets/cloudflare-email.age;
                     mode = "0400";
                     owner = "root";
                     group = "root";
                   };
                   cloudflare-dns-api-token = {
-                    file = ./secrets/cloudflare-dns-api-token.age;
+                    rekeyFile = ./secrets/cloudflare-dns-api-token.age;
                     mode = "0400";
                     owner = "root";
                     group = "root";
                   };
 
-                  # Internal Kubernetes PKI (generate .age files via generate-internal-pki.sh)
+                  # Kubernetes PKI - all with generators!
                   k8s-ca-crt = {
-                    file = ./secrets/k8s-ca.crt.age;
-                    #path = "/var/lib/kubernetes/pki/ca.crt";
+                    rekeyFile = ./secrets/k8s-ca.crt.age;
                     owner = "root";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase"; # Example generator
                   };
                   k8s-ca-key = {
-                    file = ./secrets/k8s-ca.key.age;
-                    #path = "/var/lib/kubernetes/pki/ca.key";
+                    rekeyFile = ./secrets/k8s-ca.key.age;
                     owner = "root";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   k8s-apiserver-crt = {
-                    file = ./secrets/k8s-apiserver.crt.age;
-                    #path = "/var/lib/kubernetes/pki/apiserver.crt";
+                    rekeyFile = ./secrets/k8s-apiserver.crt.age;
                     owner = "root";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   k8s-apiserver-key = {
-                    file = ./secrets/k8s-apiserver.key.age;
-                    #path = "/var/lib/kubernetes/pki/apiserver.key";
+                    rekeyFile = ./secrets/k8s-apiserver.key.age;
                     owner = "root";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   k8s-admin-crt = {
-                    file = ./secrets/k8s-admin.crt.age;
-                    #path = "/var/lib/kubernetes/pki/admin.crt";
+                    rekeyFile = ./secrets/k8s-admin.crt.age;
                     owner = "root";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   k8s-admin-key = {
-                    file = ./secrets/k8s-admin.key.age;
-                    #path = "/var/lib/kubernetes/pki/admin.key";
+                    rekeyFile = ./secrets/k8s-admin.key.age;
                     owner = "root";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
 
                   # etcd dedicated PKI (generated via generate-internal-pki.sh)
                   etcd-ca-crt = {
-                    file = ./secrets/etcd-ca.crt.age;
-                    #path = "/var/lib/etcd/pki/ca.crt";
+                    rekeyFile = ./secrets/etcd-ca.crt.age;
                     owner = "etcd";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   etcd-ca-key = {
-                    file = ./secrets/etcd-ca.key.age;
-                    #path = "/var/lib/etcd/pki/ca.key";
+                    rekeyFile = ./secrets/etcd-ca.key.age;
                     owner = "etcd";
                     group = "etcd";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   etcd-server-crt = {
-                    file = ./secrets/etcd-server.crt.age;
-                    #path = "/var/lib/etcd/pki/server.crt";
+                    rekeyFile = ./secrets/etcd-server.crt.age;
                     owner = "etcd";
                     group = "etcd";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   etcd-server-key = {
-                    file = ./secrets/etcd-server.key.age;
-                    #path = "/var/lib/etcd/pki/server.key";
+                    rekeyFile = ./secrets/etcd-server.key.age;
                     owner = "etcd";
                     group = "etcd";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   etcd-peer-crt = {
-                    file = ./secrets/etcd-peer.crt.age;
-                    #path = "/var/lib/etcd/pki/peer.crt";
+                    rekeyFile = ./secrets/etcd-peer.crt.age;
                     owner = "etcd";
                     group = "etcd";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   etcd-peer-key = {
-                    file = ./secrets/etcd-peer.key.age;
-                    #path = "/var/lib/etcd/pki/peer.key";
+                    rekeyFile = ./secrets/etcd-peer.key.age;
                     owner = "etcd";
                     group = "etcd";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   etcd-apiserver-client-crt = {
-                    file = ./secrets/etcd-apiserver-client.crt.age;
-                    #path = "/var/lib/etcd/pki/apiserver-client.crt";
+                    rekeyFile = ./secrets/etcd-apiserver-client.crt.age;
                     owner = "etcd";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   etcd-apiserver-client-key = {
-                    file = ./secrets/etcd-apiserver-client.key.age;
-                    #path = "/var/lib/etcd/pki/apiserver-client.key";
+                    rekeyFile = ./secrets/etcd-apiserver-client.key.age;
                     owner = "etcd";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   etcd-flannel-client-crt = {
-                    file = ./secrets/etcd-flannel-client.crt.age;
-                    #path = "/var/lib/etcd/pki/flannel-client.crt";
+                    rekeyFile = ./secrets/etcd-flannel-client.crt.age;
                     owner = "etcd";
                     group = "etcd";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   etcd-flannel-client-key = {
-                    file = ./secrets/etcd-flannel-client.key.age;
-                    #path = "/var/lib/etcd/pki/flannel-client.key";
+                    rekeyFile = ./secrets/etcd-flannel-client.key.age;
                     owner = "etcd";
                     group = "etcd";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
 
                   # Service account keys
                   k8s-service-account-crt = {
-                    file = ./secrets/k8s-service-account.crt.age;
-                    #path = "/var/lib/kubernetes/pki/service-account.crt";
+                    rekeyFile = ./secrets/k8s-service-account.crt.age;
                     owner = "kubernetes";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   k8s-service-account-key = {
-                    file = ./secrets/k8s-service-account.key.age;
-                    #path = "/var/lib/kubernetes/pki/service-account.key";
+                    rekeyFile = ./secrets/k8s-service-account.key.age;
                     owner = "kubernetes";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
 
                   # Kubelet server certificates
                   k8s-kubelet-server-crt = {
-                    file = ./secrets/k8s-kubelet-server.crt.age;
-                    #path = "/var/lib/kubernetes/pki/kubelet-server.crt";
+                    rekeyFile = ./secrets/k8s-kubelet-server.crt.age;
                     owner = "kubernetes";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   k8s-kubelet-server-key = {
-                    file = ./secrets/k8s-kubelet-server.key.age;
-                    #path = "/var/lib/kubernetes/pki/kubelet-server.key";
+                    rekeyFile = ./secrets/k8s-kubelet-server.key.age;
                     owner = "kubernetes";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
 
                   # Kubeconfig files
@@ -564,60 +604,60 @@
 
                   # Component certificates
                   k8s-controller-manager-crt = {
-                    file = ./secrets/k8s-controller-manager.crt.age;
-                    #path = "/var/lib/kubernetes/pki/controller-manager.crt";
+                    rekeyFile = ./secrets/k8s-controller-manager.crt.age;
                     owner = "kubernetes";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   k8s-controller-manager-key = {
-                    file = ./secrets/k8s-controller-manager.key.age;
-                    #path = "/var/lib/kubernetes/pki/controller-manager.key";
+                    rekeyFile = ./secrets/k8s-controller-manager.key.age;
                     owner = "kubernetes";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   k8s-scheduler-crt = {
-                    file = ./secrets/k8s-scheduler.crt.age;
-                    #path = "/var/lib/kubernetes/pki/scheduler.crt";
+                    rekeyFile = ./secrets/k8s-scheduler.crt.age;
                     owner = "kubernetes";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   k8s-scheduler-key = {
-                    file = ./secrets/k8s-scheduler.key.age;
-                    #path = "/var/lib/kubernetes/pki/scheduler.key";
+                    rekeyFile = ./secrets/k8s-scheduler.key.age;
                     owner = "kubernetes";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   k8s-proxy-crt = {
-                    file = ./secrets/k8s-proxy.crt.age;
-                    #path = "/var/lib/kubernetes/pki/proxy.crt";
+                    rekeyFile = ./secrets/k8s-proxy.crt.age;
                     owner = "kubernetes";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   k8s-proxy-key = {
-                    file = ./secrets/k8s-proxy.key.age;
-                    #path = "/var/lib/kubernetes/pki/proxy.key";
+                    rekeyFile = ./secrets/k8s-proxy.key.age;
                     owner = "kubernetes";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   k8s-kubelet-crt = {
-                    file = ./secrets/k8s-kubelet.crt.age;
-                    #path = "/var/lib/kubernetes/pki/kubelet.crt";
+                    rekeyFile = ./secrets/k8s-kubelet.crt.age;
                     owner = "kubernetes";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
                   k8s-kubelet-key = {
-                    file = ./secrets/k8s-kubelet.key.age;
-                    #path = "/var/lib/kubernetes/pki/kubelet.key";
+                    rekeyFile = ./secrets/k8s-kubelet.key.age;
                     owner = "kubernetes";
                     group = "kubernetes";
                     mode = "0440";
+                    generator.script = "passphrase";
                   };
 
                   # Component kubeconfig files
@@ -664,7 +704,10 @@
                     KUBECONFIG = "/etc/kubernetes/admin.kubeconfig";
                   };
 
-                  systemPackages = extraPackages ++ [ agenix.packages.x86_64-linux.default ];
+                  systemPackages = extraPackages ++ [ 
+                    agenix.packages.x86_64-linux.default
+                    agenix-rekey.packages.x86_64-linux.default
+                  ];
                 };
 
                 services = {
@@ -706,13 +749,11 @@
                       port = 8472;
                     };
                     iface = "ens18";
-                    storageBackend = lib.mkForce "etcd";
-                    etcd = {
-                      endpoints = [ "https://${fqdn}:2379" ];
-                      caFile = config.age.secrets.etcd-ca-crt.path;
-                      certFile = config.age.secrets.etcd-flannel-client-crt.path;
-                      keyFile = config.age.secrets.etcd-flannel-client-key.path;
-                    };
+                    # Use kubernetes backend instead of etcd - this is the standard way
+                    storageBackend = "kubernetes";
+                    # When using kubernetes backend, flannel needs a kubeconfig
+                    kubeconfig = config.age.secrets.k8s-admin-kubeconfig.path;
+                    nodeName = hostName;
                   };
                   kubernetes = {
 
@@ -788,7 +829,10 @@
                       enable = true;
                       hostname = hostName;
                       clusterDns = [ "10.43.0.254" ];
-                      # Don't set node labels - will be applied manually or via addon if needed
+                      # Explicitly tell kubelet we're using CRI-O
+                      extraOpts = ''
+                        --runtime-cgroups=/system.slice/crio.service
+                      '';
                       kubeconfig = {
                         caFile = config.age.secrets.k8s-ca-crt.path;
                         certFile = config.age.secrets.k8s-kubelet-crt.path;
@@ -797,23 +841,25 @@
                       };
                       tlsCertFile = config.age.secrets.k8s-kubelet-server-crt.path;
                       tlsKeyFile = config.age.secrets.k8s-kubelet-server-key.path;
-                      cni = {
-                        packages = with pkgs; [
-                          cni-plugins
-                          cni-plugin-flannel
-                        ];
-                        config = [
-                          {
-                            name = "flannelnet";
-                            type = "flannel";
-                            cniVersion = pkgs.cni-plugin-flannel.version;
-                            delegate = {
-                              isDefaultGateway = true;
-                              bridge = "flannelnet";
-                            };
-                          }
-                        ];
-                      };
+                      # Remove the hardcoded CNI config - let flannel module manage it
+                      # The flannel module sets this automatically when enabled
+                      # cni = {
+                      #   packages = with pkgs; [
+                      #     cni-plugins
+                      #     cni-plugin-flannel
+                      #   ];
+                      #   config = [
+                      #     {
+                      #       name = "flannelnet";
+                      #       type = "flannel";
+                      #       cniVersion = pkgs.cni-plugin-flannel.version;
+                      #       delegate = {
+                      #         isDefaultGateway = true;
+                      #         bridge = "flannelnet";
+                      #       };
+                      #     }
+                      #   ];
+                      # };
                     };
 
                     proxy = {

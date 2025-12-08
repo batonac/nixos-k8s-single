@@ -130,5 +130,105 @@
         "requestheader-client-ca-file" = "";
       };
     };
+    
+    # RBAC for controller-manager to read extension-apiserver-authentication
+    extension-apiserver-authentication-reader-role = {
+      apiVersion = "rbac.authorization.k8s.io/v1";
+      kind = "Role";
+      metadata = {
+        name = "extension-apiserver-authentication-reader";
+        namespace = "kube-system";
+        labels."kubernetes.io/bootstrapping" = "rbac-defaults";
+      };
+      rules = [{
+        apiGroups = [""];
+        resources = ["configmaps"];
+        resourceNames = ["extension-apiserver-authentication"];
+        verbs = ["get" "list" "watch"];
+      }];
+    };
+    
+    extension-apiserver-authentication-reader-rolebinding-controller-manager = {
+      apiVersion = "rbac.authorization.k8s.io/v1";
+      kind = "RoleBinding";
+      metadata = {
+        name = "system:controller-manager:extension-apiserver-authentication-reader";
+        namespace = "kube-system";
+        labels."kubernetes.io/bootstrapping" = "rbac-defaults";
+      };
+      roleRef = {
+        apiGroup = "rbac.authorization.k8s.io";
+        kind = "Role";
+        name = "extension-apiserver-authentication-reader";
+      };
+      subjects = [{
+        kind = "User";
+        name = "system:kube-controller-manager";
+      }];
+    };
+    
+    extension-apiserver-authentication-reader-rolebinding-scheduler = {
+      apiVersion = "rbac.authorization.k8s.io/v1";
+      kind = "RoleBinding";
+      metadata = {
+        name = "system:scheduler:extension-apiserver-authentication-reader";
+        namespace = "kube-system";
+        labels."kubernetes.io/bootstrapping" = "rbac-defaults";
+      };
+      roleRef = {
+        apiGroup = "rbac.authorization.k8s.io";
+        kind = "Role";
+        name = "extension-apiserver-authentication-reader";
+      };
+      subjects = [{
+        kind = "User";
+        name = "system:kube-scheduler";
+      }];
+    };
+    
+    # Flannel RBAC permissions
+    flannel-cr = {
+      apiVersion = "rbac.authorization.k8s.io/v1";
+      kind = "ClusterRole";
+      metadata = {
+        name = "flannel";
+        labels."kubernetes.io/bootstrapping" = "rbac-defaults";
+      };
+      rules = [
+        {
+          apiGroups = [""];
+          resources = ["pods"];
+          verbs = ["get"];
+        }
+        {
+          apiGroups = [""];
+          resources = ["nodes"];
+          verbs = ["list" "watch"];
+        }
+        {
+          apiGroups = [""];
+          resources = ["nodes/status"];
+          verbs = ["patch"];
+        }
+      ];
+    };
+    
+    flannel-crb = {
+      apiVersion = "rbac.authorization.k8s.io/v1";
+      kind = "ClusterRoleBinding";
+      metadata = {
+        name = "flannel";
+        labels."kubernetes.io/bootstrapping" = "rbac-defaults";
+      };
+      roleRef = {
+        apiGroup = "rbac.authorization.k8s.io";
+        kind = "ClusterRole";
+        name = "flannel";
+      };
+      subjects = [{
+        kind = "User";
+        name = "kubernetes-admin";  # Using admin kubeconfig
+      }];
+    };
   };
 }

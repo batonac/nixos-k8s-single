@@ -18,3 +18,22 @@ result-*
 *~
 .vscode/
 .idea/
+
+# Initrd SSH keys - NEVER COMMIT
+# Store in password manager instead
+secrets/initrd/
+
+# Temporary decrypted secrets
+secrets/*.pem
+secrets/*.key
+secrets/*.crt
+secrets/*.kubeconfig
+
+# Rekeyed secrets (local storage mode)
+secrets/rekeyed/
+
+# Generated secrets
+secrets/generated/
+
+# Don't ignore master secrets (encrypted with YubiKey)
+!secrets/*.age

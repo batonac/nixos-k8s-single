@@ -3,8 +3,7 @@ let
   userKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJTf4eJ30NJHEg7E2m+dpU5mDH7Ou/ooL8dbVd+K6gC/";
   
   # System SSH host key (so the system can decrypt)
-  # Get this by running: ssh-keyscan -t ed25519 k3s-dev.batonac.com
-  systemKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMPz+H/tG0glrE2xIcnGUhbZFvrxz5GzUzQJjONXkITY"; # REPLACE WITH ACTUAL SYSTEM SSH KEY
+  systemKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEiNCbMBi8L9Kq1/8H+vWSSH6Vm9saENQcWa6lTCIIj8"; # REPLACE WITH ACTUAL SYSTEM SSH KEY
 in
 {
   # Cloudflare secrets only
