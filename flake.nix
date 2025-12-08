@@ -1093,8 +1093,15 @@
                           conf_dir = "/etc/cni/net.d";
                         };
                         containerd = {
-                          default_runtime_name = "runc";
+                          default_runtime_name = "crun";
                           runtimes = {
+                            crun = {
+                              runtime_type = "io.containerd.runc.v2";
+                              options = {
+                                BinaryName = "${pkgs.crun}/bin/crun";
+                                SystemdCgroup = true;
+                              };
+                            };
                             runc = {
                               runtime_type = "io.containerd.runc.v2";
                               options = {

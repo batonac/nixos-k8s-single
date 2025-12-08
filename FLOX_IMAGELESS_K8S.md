@@ -33,7 +33,7 @@ Flox Imageless Kubernetes eliminates the need to build and manage container imag
 
 This configuration has been updated from CRI-O to containerd to support Flox:
 
-- **Container Runtime**: containerd (replacing CRI-O)
+- **Container Runtime**: containerd with crun as the default OCI runtime (replacing CRI-O)
 - **Storage Driver**: OverlayFS on ext4 filesystem (replacing btrfs)
 - **Runtime Shim**: containerd-shim-flox-v2 for Flox environment support
 - **RuntimeClass**: `flox` RuntimeClass for scheduling Flox workloads
@@ -236,9 +236,18 @@ kubectl logs flox-example -n flox-workloads
 
 ### containerd Configuration
 
-The containerd runtime is configured with the Flox shim at `/etc/containerd/config.toml`:
+The containerd runtime is configured with crun as the default OCI runtime and the Flox shim at `/etc/containerd/config.toml`:
 
 ```toml
+[plugins."io.containerd.grpc.v1.cri".containerd]
+  default_runtime_name = "crun"
+
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.crun]
+  runtime_type = "io.containerd.runc.v2"
+  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.crun.options]
+    BinaryName = "/nix/store/.../bin/crun"
+    SystemdCgroup = true
+
 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.flox]
   runtime_path = "/usr/local/bin/containerd-shim-flox-v2"
   runtime_type = "io.containerd.runc.v2"
@@ -325,6 +334,7 @@ If the Flox environment isn't mounting correctly:
 This configuration migrates from CRI-O with btrfs to containerd with ext4/OverlayFS:
 
 - **Container Runtime Endpoint**: Changed from `unix:///run/crio/crio.sock` to `unix:///run/containerd/containerd.sock`
+- **OCI Runtime**: Retained crun as the default OCI runtime for compatibility and performance
 - **Filesystem**: Changed from btrfs to ext4 for better OverlayFS support
 - **Storage Driver**: Now uses OverlayFS (containerd default)
 

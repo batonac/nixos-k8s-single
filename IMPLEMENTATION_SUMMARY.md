@@ -20,12 +20,13 @@ Flox Imageless Kubernetes is a novel approach to Kubernetes deployments that eli
 ### 1. Container Runtime Migration (Breaking Change)
 
 **From**: CRI-O with btrfs storage
-**To**: containerd with OverlayFS on ext4
+**To**: containerd with crun as default OCI runtime, OverlayFS on ext4
 
 **Rationale**: 
 - Flox requires containerd-shim-flox-v2, which integrates with containerd
 - OverlayFS is the recommended storage driver for containerd
 - ext4 provides better performance for OverlayFS than btrfs
+- crun is retained as the default OCI runtime for better performance
 
 **Impact**: Requires full system reinstall for existing deployments
 
@@ -56,8 +57,20 @@ supportedFilesystems = {
 - Added containerd configuration with:
   - Version 2 config format
   - CNI integration with flannel
-  - Default runc runtime
+  - Default crun OCI runtime (retaining from CRI-O setup)
+  - Fallback runc runtime available
   - Flox runtime with proper annotations
+
+Default runtime configuration:
+```nix
+crun = {
+  runtime_type = "io.containerd.runc.v2";
+  options = {
+    BinaryName = "${pkgs.crun}/bin/crun";
+    SystemdCgroup = true;
+  };
+};
+```
 
 Flox runtime configuration:
 ```nix
