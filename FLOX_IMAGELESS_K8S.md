@@ -2,6 +2,22 @@
 
 This NixOS configuration includes support for [Flox Imageless Kubernetes](https://flox.dev/kubernetes/), which allows you to deploy workloads directly to Kubernetes using Flox environments instead of container images.
 
+## ⚠️ Important: Breaking Changes
+
+**This update includes significant breaking changes that require a full system reinstall:**
+
+- **Container Runtime**: Migrated from CRI-O to containerd
+- **Filesystem**: Changed from btrfs to ext4
+- **Storage Driver**: Now uses OverlayFS instead of btrfs
+
+**If you are upgrading an existing deployment**, you will need to:
+
+1. Backup all important data and configurations
+2. Perform a fresh install with the updated configuration
+3. Restore your workloads and data after the new system is running
+
+**For fresh installations**, these changes are transparent and require no special action.
+
 ## Overview
 
 Flox Imageless Kubernetes eliminates the need to build and manage container images. Instead, you define your application environment using Flox, and the runtime mounts that environment directly into your pods.
@@ -49,6 +65,101 @@ kubectl label node <node-name> flox.dev/runtime=enabled
 
 # Verify the label
 kubectl get nodes --show-labels | grep flox
+```
+
+A helper script is provided for convenience:
+
+```bash
+# Label the current node
+./scripts/label-node-for-flox.sh
+
+# Or label a specific node
+./scripts/label-node-for-flox.sh <node-name>
+```
+
+## Verifying the Installation
+
+After deploying the updated configuration, verify that everything is working correctly:
+
+### 1. Check containerd is Running
+
+```bash
+sudo systemctl status containerd
+```
+
+Expected output: `active (running)`
+
+### 2. Verify Flox Shim Installation
+
+```bash
+# Check the shim file exists
+ls -la /usr/local/bin/containerd-shim-flox-v2
+
+# Check the installation service
+sudo systemctl status install-flox-shim
+```
+
+The shim should be present and the service should show `active (exited)`.
+
+### 3. Verify RuntimeClass
+
+```bash
+kubectl get runtimeclass
+```
+
+You should see the `flox` RuntimeClass listed:
+
+```
+NAME   HANDLER   AGE
+flox   flox      1m
+```
+
+### 4. Check Example Workload
+
+```bash
+# Check if the example namespace was created
+kubectl get namespace flox-workloads
+
+# Check the example pod (it may be completed if it ran successfully)
+kubectl get pod flox-example -n flox-workloads
+
+# View pod logs
+kubectl logs flox-example -n flox-workloads
+```
+
+### 5. Test with a Simple Flox Environment
+
+Create a test Flox environment and deploy it:
+
+```bash
+# Create a simple test environment
+mkdir /tmp/flox-test
+cd /tmp/flox-test
+flox init
+flox install hello
+
+# Deploy a test pod (after publishing or using a local path)
+kubectl run flox-test \
+  --image=registry.k8s.io/pause:3.9 \
+  --restart=Never \
+  --overrides='
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "annotations": {
+      "flox.dev/environment": "floxhub/yourorg/test"
+    }
+  },
+  "spec": {
+    "runtimeClassName": "flox",
+    "containers": [{
+      "name": "test",
+      "image": "registry.k8s.io/pause:3.9",
+      "command": ["hello"]
+    }]
+  }
+}'
 ```
 
 ## Using Flox Imageless Kubernetes

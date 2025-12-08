@@ -1022,30 +1022,51 @@
                       description = "Install containerd-shim-flox runtime";
                       wantedBy = [ "multi-user.target" ];
                       before = [ "containerd.service" ];
-                      path = with pkgs; [ inputs.flox.packages.${system}.default coreutils ];
+                      path = with pkgs; [
+                        inputs.flox.packages.${system}.default
+                        coreutils
+                        gnutar
+                        gzip
+                      ];
                       serviceConfig = {
                         Type = "oneshot";
                         RemainAfterExit = true;
                       };
                       script = ''
-                        # Create directory for flox shim environment if it doesn't exist
-                        mkdir -p /var/lib/flox/containerd-shim
-                        cd /var/lib/flox/containerd-shim
+                        # Try automatic installation first
+                        echo "Attempting automatic Flox shim installation..."
+                        ${inputs.flox.packages.${system}.default}/bin/flox activate -r flox/containerd-shim-flox-installer --trust || {
+                          echo "Automatic installation failed or not available, using manual method..."
+                          
+                          # Manual installation fallback
+                          mkdir -p /var/lib/flox/containerd-shim
+                          cd /var/lib/flox/containerd-shim
+                          
+                          # Initialize flox environment if not already done
+                          if [ ! -d ".flox" ]; then
+                            ${inputs.flox.packages.${system}.default}/bin/flox init -b
+                            # Install the containerd-shim-flox package
+                            # Try version 2.x first (for containerd 2.x), fall back to 1.7
+                            ${inputs.flox.packages.${system}.default}/bin/flox install containerd-shim-flox-2x || \
+                              ${inputs.flox.packages.${system}.default}/bin/flox install containerd-shim-flox-17
+                          fi
+                          
+                          # Create symlink to /usr/local/bin if shim exists
+                          mkdir -p /usr/local/bin
+                          if [ -f ".flox/run/x86_64-linux.containerd-shim-flox.run/bin/containerd-shim-flox-v2" ]; then
+                            ln -sf /var/lib/flox/containerd-shim/.flox/run/x86_64-linux.containerd-shim-flox.run/bin/containerd-shim-flox-v2 \
+                              /usr/local/bin/containerd-shim-flox-v2
+                            echo "Flox shim installed successfully at /usr/local/bin/containerd-shim-flox-v2"
+                          else
+                            echo "Warning: Flox shim binary not found after installation"
+                          fi
+                        }
                         
-                        # Initialize flox environment if not already done
-                        if [ ! -d ".flox" ]; then
-                          ${inputs.flox.packages.${system}.default}/bin/flox init -b
-                          # Install the containerd-shim-flox package
-                          # Note: Using -2x for containerd 2.x, adjust if needed
-                          ${inputs.flox.packages.${system}.default}/bin/flox install containerd-shim-flox-2x || \
-                            ${inputs.flox.packages.${system}.default}/bin/flox install containerd-shim-flox-17
-                        fi
-                        
-                        # Create symlink to /usr/local/bin if shim exists
-                        mkdir -p /usr/local/bin
-                        if [ -f ".flox/run/x86_64-linux.containerd-shim-flox.run/bin/containerd-shim-flox-v2" ]; then
-                          ln -sf /var/lib/flox/containerd-shim/.flox/run/x86_64-linux.containerd-shim-flox.run/bin/containerd-shim-flox-v2 \
-                            /usr/local/bin/containerd-shim-flox-v2
+                        # Verify installation
+                        if [ -x "/usr/local/bin/containerd-shim-flox-v2" ]; then
+                          echo "Flox containerd shim is ready"
+                        else
+                          echo "Warning: Flox containerd shim not found or not executable"
                         fi
                       '';
                     };
