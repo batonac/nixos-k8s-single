@@ -18,11 +18,11 @@ echo "Labeling node '${NODE_NAME}' for Flox runtime..."
 kubectl label node "${NODE_NAME}" flox.dev/runtime=enabled --overwrite
 
 # Verify the label was added
-if kubectl get node "${NODE_NAME}" -o jsonpath='{.metadata.labels.flox\.dev/runtime}' | grep -q "enabled"; then
+if kubectl get node "${NODE_NAME}" -o jsonpath='{.metadata.labels.flox\.dev/runtime}' 2>/dev/null | grep -q "enabled"; then
     echo "✓ Successfully labeled node '${NODE_NAME}'"
     echo ""
     echo "Node labels:"
-    kubectl get node "${NODE_NAME}" --show-labels | grep -o 'flox.dev/runtime=enabled'
+    kubectl get node "${NODE_NAME}" --show-labels | grep -o 'flox.dev/runtime=enabled' || true
 else
     echo "✗ Failed to label node '${NODE_NAME}'"
     exit 1

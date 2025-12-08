@@ -37,6 +37,8 @@
     };
 
     # Example Flox pod demonstrating Imageless Kubernetes
+    # NOTE: This is a template example. Replace the environment reference with your actual Flox environment.
+    # The pod will fail to start until you provide a valid Flox environment reference.
     flox-example-pod = {
       apiVersion = "v1";
       kind = "Pod";
@@ -44,7 +46,10 @@
         name = "flox-example";
         namespace = "flox-workloads";
         annotations = {
-          "flox.dev/environment" = "floxhub.example/hello-world";
+          # TODO: Replace with your actual Flox environment from FloxHub
+          # Format: "floxhub/<org>/<environment-name>" or "floxhub/<user>/<environment-name>"
+          # Example: "floxhub/myorg/hello-world" or "floxhub/john/nodejs-app"
+          "flox.dev/environment" = "floxhub/YOUR_ORG/YOUR_ENVIRONMENT";
         };
       };
       spec = {

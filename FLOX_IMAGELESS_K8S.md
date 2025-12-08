@@ -116,16 +116,20 @@ flox   flox      1m
 
 ### 4. Check Example Workload
 
+The example Flox workload is created but will not start successfully until you provide a valid Flox environment reference:
+
 ```bash
 # Check if the example namespace was created
 kubectl get namespace flox-workloads
 
-# Check the example pod (it may be completed if it ran successfully)
+# The example pod uses a placeholder environment and will fail to start
 kubectl get pod flox-example -n flox-workloads
 
-# View pod logs
-kubectl logs flox-example -n flox-workloads
+# To make it work, edit the pod annotation with your actual Flox environment
+# See the "Using Flox Imageless Kubernetes" section below for details
 ```
+
+**Note**: The example pod is intentionally configured with a placeholder environment (`floxhub/YOUR_ORG/YOUR_ENVIRONMENT`) and needs to be updated with a real Flox environment before it will run successfully.
 
 ### 5. Test with a Simple Flox Environment
 

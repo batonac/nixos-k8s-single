@@ -1046,19 +1046,24 @@
                           if [ ! -d ".flox" ]; then
                             ${inputs.flox.packages.${system}.default}/bin/flox init -b
                             # Install the containerd-shim-flox package
-                            # Try version 2.x first (for containerd 2.x), fall back to 1.7
+                            # containerd-shim-flox-2x: for containerd 2.x
+                            # containerd-shim-flox-17: for containerd 1.7.x
+                            # Try 2.x first as it's more recent
                             ${inputs.flox.packages.${system}.default}/bin/flox install containerd-shim-flox-2x || \
                               ${inputs.flox.packages.${system}.default}/bin/flox install containerd-shim-flox-17
                           fi
                           
                           # Create symlink to /usr/local/bin if shim exists
                           mkdir -p /usr/local/bin
-                          if [ -f ".flox/run/x86_64-linux.containerd-shim-flox.run/bin/containerd-shim-flox-v2" ]; then
-                            ln -sf /var/lib/flox/containerd-shim/.flox/run/x86_64-linux.containerd-shim-flox.run/bin/containerd-shim-flox-v2 \
+                          # Use system architecture variable instead of hardcoding
+                          ARCH="${system}"
+                          SHIM_PATH=".flox/run/$ARCH.containerd-shim-flox.run/bin/containerd-shim-flox-v2"
+                          if [ -f "$SHIM_PATH" ]; then
+                            ln -sf "/var/lib/flox/containerd-shim/$SHIM_PATH" \
                               /usr/local/bin/containerd-shim-flox-v2
                             echo "Flox shim installed successfully at /usr/local/bin/containerd-shim-flox-v2"
                           else
-                            echo "Warning: Flox shim binary not found after installation"
+                            echo "Warning: Flox shim binary not found at $SHIM_PATH"
                           fi
                         }
                         
