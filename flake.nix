@@ -242,7 +242,7 @@
                       "/secrets/initrd/ssh_host_ed25519_key" = "/etc/ssh/ssh_host_ed25519_key";
                     };
                     supportedFilesystems = {
-                      btrfs = true;
+                      ext4 = true;
                       vfat = true;
                       zfs = lib.mkForce false;
                     };
@@ -312,16 +312,13 @@
                             size = "100%";
                             content = {
                               type = "filesystem";
-                              format = "btrfs";
+                              format = "ext4";
                               mountOptions = [
-                                "autodefrag"
-                                "compress=zstd:15"
-                                "discard=async"
                                 "noatime"
                               ];
                               mountpoint = "/";
                               extraArgs = [
-                                "--label"
+                                "-L"
                                 "root"
                               ];
                             };
@@ -831,13 +828,13 @@
                     };
 
                     kubelet = {
-                      containerRuntimeEndpoint = "unix:///run/crio/crio.sock";
+                      containerRuntimeEndpoint = "unix:///run/containerd/containerd.sock";
                       enable = true;
                       hostname = hostName;
                       clusterDns = [ "10.43.0.254" ];
-                      # Explicitly tell kubelet we're using CRI-O
+                      # Explicitly tell kubelet we're using containerd
                       extraOpts = ''
-                        --runtime-cgroups=/system.slice/crio.service
+                        --runtime-cgroups=/system.slice/containerd.service
                       '';
                       kubeconfig = {
                         caFile = config.age.secrets.k8s-ca-crt.path;
@@ -985,8 +982,16 @@
 
                     kubelet = {
                       serviceConfig.SupplementaryGroups = [ "kubernetes" ];
-                      requires = [ "flannel.service" ];
-                      after = [ "flannel.service" ];
+                      requires = [
+                        "flannel.service"
+                        "containerd.service"
+                        "install-flox-shim.service"
+                      ];
+                      after = [
+                        "flannel.service"
+                        "containerd.service"
+                        "install-flox-shim.service"
+                      ];
                     };
 
                     # Configure addon-manager to use admin kubeconfig
@@ -1011,6 +1016,39 @@
                           ''
                         );
                     };
+
+                    # Install containerd-shim-flox using Flox
+                    install-flox-shim = {
+                      description = "Install containerd-shim-flox runtime";
+                      wantedBy = [ "multi-user.target" ];
+                      before = [ "containerd.service" ];
+                      path = with pkgs; [ inputs.flox.packages.${system}.default coreutils ];
+                      serviceConfig = {
+                        Type = "oneshot";
+                        RemainAfterExit = true;
+                      };
+                      script = ''
+                        # Create directory for flox shim environment if it doesn't exist
+                        mkdir -p /var/lib/flox/containerd-shim
+                        cd /var/lib/flox/containerd-shim
+                        
+                        # Initialize flox environment if not already done
+                        if [ ! -d ".flox" ]; then
+                          ${inputs.flox.packages.${system}.default}/bin/flox init -b
+                          # Install the containerd-shim-flox package
+                          # Note: Using -2x for containerd 2.x, adjust if needed
+                          ${inputs.flox.packages.${system}.default}/bin/flox install containerd-shim-flox-2x || \
+                            ${inputs.flox.packages.${system}.default}/bin/flox install containerd-shim-flox-17
+                        fi
+                        
+                        # Create symlink to /usr/local/bin if shim exists
+                        mkdir -p /usr/local/bin
+                        if [ -f ".flox/run/x86_64-linux.containerd-shim-flox.run/bin/containerd-shim-flox-v2" ]; then
+                          ln -sf /var/lib/flox/containerd-shim/.flox/run/x86_64-linux.containerd-shim-flox.run/bin/containerd-shim-flox-v2 \
+                            /usr/local/bin/containerd-shim-flox-v2
+                        fi
+                      '';
+                    };
                   };
 
                 };
@@ -1019,60 +1057,35 @@
                   containers = {
                     enable = true;
                   };
-                  cri-o = {
+                  containerd = {
                     enable = true;
-                    storageDriver = "btrfs";
-                    runtime = "crun";
                     settings = {
-                      crio = {
-                        image = {
-                          # Configure default registries
-                          registries = {
-                            "docker.io" = {
-                              blocked = false;
-                              insecure = false;
-                              location = "docker.io";
-                              mirror = [ ];
-                              prefix = "docker.io";
+                      version = 2;
+                      plugins."io.containerd.grpc.v1.cri" = {
+                        cni = {
+                          bin_dir = "${pkgs.cni-plugins}/bin";
+                          conf_dir = "/etc/cni/net.d";
+                        };
+                        containerd = {
+                          default_runtime_name = "runc";
+                          runtimes = {
+                            runc = {
+                              runtime_type = "io.containerd.runc.v2";
+                              options = {
+                                SystemdCgroup = true;
+                              };
                             };
-                            "quay.io" = {
-                              blocked = false;
-                              insecure = false;
-                              location = "quay.io";
-                              mirror = [ ];
-                              prefix = "quay.io";
-                            };
-                            "gcr.io" = {
-                              blocked = false;
-                              insecure = false;
-                              location = "gcr.io";
-                              mirror = [ ];
-                              prefix = "gcr.io";
-                            };
-                            "registry.k8s.io" = {
-                              blocked = false;
-                              insecure = false;
-                              location = "registry.k8s.io";
-                              mirror = [ ];
-                              prefix = "registry.k8s.io";
+                            # Flox runtime configuration
+                            flox = {
+                              runtime_path = "/usr/local/bin/containerd-shim-flox-v2";
+                              runtime_type = "io.containerd.runc.v2";
+                              pod_annotations = [ "flox.dev/*" ];
+                              container_annotations = [ "flox.dev/*" ];
+                              options = {
+                                SystemdCgroup = true;
+                              };
                             };
                           };
-                        };
-                        network = {
-                          plugin_dirs = [
-                            "${pkgs.cni-plugins}/bin"
-                            "${pkgs.cni-plugin-flannel}/bin"
-                          ];
-                          network_dir = "/etc/cni/net.d";
-                        };
-                        runtime = {
-                          cgroup_manager = "systemd";
-                          default_runtime = "crun";
-                          pause_image = "rancher/mirrored-pause:3.6";
-                          pause_image_auth_file = "";
-                          pause_command = "/pause";
-                          conmon_cgroup = "pod";
-                          manage_ns_lifecycle = true;
                         };
                       };
                     };

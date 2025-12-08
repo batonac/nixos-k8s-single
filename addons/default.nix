@@ -11,7 +11,7 @@ let
     "dns"
     "namespaces"
     "test-workloads"
-    "rbac-bootstrap" # Add system RBAC bootstrapping
+    "flox-runtime" # Flox Imageless Kubernetes support
   ];
 
   # Import addon definitions
@@ -20,6 +20,7 @@ let
     namespaces = import ./namespaces.nix { inherit pkgs lib; };
     test-workloads = import ./test-workloads.nix { inherit pkgs lib; };
     rbac-bootstrap = import ./rbac-bootstrap.nix { inherit pkgs lib config; };
+    flox-runtime = import ./flox-runtime.nix { inherit pkgs lib; };
   };
 
   # Get enabled addon definitions
