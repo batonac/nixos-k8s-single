@@ -59,9 +59,9 @@
       locale = "en_US.UTF-8"; # Replace with your locale
       username = "nixos"; # Replace with desired username
       initialPassword = "password"; # Replace with a secure password
-      ipAddress = "10.48.4.181";
+      ipAddress = "192.168.0.121"; # Replace with your desired static IP address
       stateVersion = "25.11"; # NixOS state version
-      sshKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOv4SpIhHJqtRaYBRQOin4PTDUxRwo7ozoQHTUFjMGLW avunu@AvunuCentral"; # Replace with your SSH public key
+      sshKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEiNCbMBi8L9Kq1/8H+vWSSH6Vm9saENQcWa6lTCIIj8"; # Replace with your SSH public key
       system = "x86_64-linux";
       extraPackages = with nixpkgs.legacyPackages.${system}; [
         coreutils
@@ -419,7 +419,7 @@
                 # Configure agenix-rekey
                 age.rekey = {
                   # Host SSH public key
-                  hostPubkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEiNCbMBi8L9Kq1/8H+vWSSH6Vm9saENQcWa6lTCIIj8"; # REPLACE AFTER FIRST BOOT
+                  hostPubkey = sshKey;
 
                   # Your YubiKey identity
                   masterIdentities = [ ./secrets/yubikey-identity.pub ];

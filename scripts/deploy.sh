@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+
+
 # Parse FQDN argument
 FQDN="${1:-k3s-dev.batonac.com}"
-HOSTNAME="${FQDN%%.*}"  # Extract hostname from FQDN (everything before first dot)
+IP_ADDRESS="192.168.0.121"
+HOSTNAME="k3s-dev"  # Extract hostname from FQDN (everything before first dot)
+
+# # Parse FQDN argument
+# FQDN="${1:-k3s-dev.batonac.com}"
+# HOSTNAME="${FQDN%%.*}"  # Extract hostname from FQDN (everything before first dot)
 
 echo "🚀 Deploying NixOS to $FQDN (hostname: $HOSTNAME)"
 echo ""
@@ -32,7 +39,7 @@ echo "🔧 Running nixos-anywhere..."
 nix run github:nix-community/nixos-anywhere -- \
   --extra-files "$temp" \
   --flake ".#${HOSTNAME}" \
-  --target-host "root@${FQDN}"
+  --target-host "root@${IP_ADDRESS}"
 
 echo ""
 echo "✅ Deployment complete!"
